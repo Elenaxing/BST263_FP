@@ -4,6 +4,7 @@ library(survey)
 library(mgcv)
 library(glmnet)
 library(dplyr)
+library(pROC)
 
 df <- readRDS("../data/brfss2024_clean.rds")
 
@@ -96,7 +97,12 @@ weighted_lasso <- cv.glmnet(
   alpha = 1,
   weights = df$WEIGHT
 )
-summary(weighted_lasso)
+coef(weighted_lasso, s = "lambda.1se")
+plot(weighted_lasso$glmnet.fit, xvar = "lambda")
+plot(weighted_lasso)
+pred <- predict(weighted_lasso, newx = x, s = "lambda.1se", type = "response")
+roc_obj <- roc(y, as.numeric(pred))
+auc(roc_obj)
 
 unweighted_lasso <- cv.glmnet(
   x,
@@ -104,48 +110,41 @@ unweighted_lasso <- cv.glmnet(
   family = "binomial",
   alpha = 1
 )
-summary(unweighted_lasso)
+coef(unweighted_lasso, s = "lambda.1se")
+plot(unweighted_lasso$glmnet.fit, xvar = "lambda")
+plot(unweighted_lasso)
+pred <- predict(unweighted_lasso, newx = x, s = "lambda.1se", type = "response")
+roc_obj <- roc(y, as.numeric(pred))
+auc(roc_obj)
 
-weighted_lasso_summary <- summary(weighted_lasso)$coefficients
-unweighted_lasso_summary <- summary(unweighted_lasso)$coefficients
-weighted_lasso_df <- data.frame(
-  Variable = rownames(weighted_lasso_summary),
-  Weighted_Estimate = weighted_lasso_summary[, 1],
-  Weighted_SE = weighted_lasso_summary[, 2],
-  Weighted_p = weighted_lasso_summary[, 4]
-)
-
-unweighted_lasso_df <- data.frame(
-  Variable = rownames(unweighted_lasso_summary),
-  Unweighted_Estimate = unweighted_lasso_summary[, 1],
-  Unweighted_SE = unweighted_lasso_summary[, 2],
-  Unweighted_p = unweighted_lasso_summary[, 4]
-)
-comparison_lasso_table <- merge(
-  weighted_lasso_df,
-  unweighted_lasso_df,
-  by = "Variable"
-)
-
-comparison_lasso_table
-
-comparison_lasso_table$Weighted_OR <- exp(comparison_lasso_table$Weighted_Estimate)
-
-comparison_lasso_table$Unweighted_OR <- exp(comparison_lasso_table$Unweighted_Estimate)
-
-comparison_lasso_table <- comparison_lasso_table %>%
-  mutate(across(where(is.numeric), round, 3))
-
-comparison_lasso_table
+lasso_out <- cbind(coef(weighted_lasso, s = "lambda.1se"),
+                   coef(unweighted_lasso, s = "lambda.1se"))
+colnames(lasso_out) <- c("Weighted", "Unweighted")
+lasso_out
 
 # GAM
-data_df$survey_weight <- weights(brfss_design)
+df$survey_weight <- weights(brfss_design)
 weighted_gam <- gam(
   MEDCOST1 ~
     s(physhlth_days) +
     s(menthlth_days) +
-    sex + agegroup + income,
-  data = data_clean,
+    s(chronic_count) +
+    region +
+    rurality +
+    sex +
+    agegroup +
+    race +
+    income +
+    maritalstatus +
+    education +
+    employment +
+    healthstatus +
+    depression +
+    any_disability +
+    insurance +
+    pers_doc +
+    last_checkup,
+  data = df,
   family = binomial(),
   weights = survey_weight
 )
@@ -156,7 +155,22 @@ unweighted_gam <- gam(
   MEDCOST1 ~
     s(physhlth_days) +
     s(menthlth_days) +
-    sex + agegroup + income,
-  data = data_clean,
+    s(chronic_count) +
+    region +
+    rurality +
+    sex +
+    agegroup +
+    race +
+    income +
+    maritalstatus +
+    education +
+    employment +
+    healthstatus +
+    depression +
+    any_disability +
+    insurance +
+    pers_doc +
+    last_checkup,
+  data = df,
   family = binomial()
 )
