@@ -6,7 +6,7 @@ editor: visual
 
 # Setup
 ```{r}
-# install.packages(c("survey", "mgcv", "glmnet", "dplyr", "pROC", "ranger"))
+# install.packages(c("survey", "mgcv", "glmnet", "dplyr", "pROC", "ranger", "xgboost"))
 
 library(survey)
 library(mgcv)
@@ -14,6 +14,7 @@ library(glmnet)
 library(dplyr)
 library(pROC)
 library(ranger)
+library(xgboost)
 ```
 
 # Data split and survey design
@@ -457,6 +458,85 @@ rf_importance <- data.frame(
 head(rf_importance, 15)
 ```
 
+# Boosting
+```{r}
+dtrain <- xgb.DMatrix(data = x_train, label = y_train)
+dtest <- xgb.DMatrix(data = x_test, label = y_test)
+
+xgb_grid <- expand.grid(
+  eta = c(0.05, 0.10),
+  max_depth = c(2, 3),
+  KEEP.OUT.ATTRS = FALSE
+)
+
+scale_pos_weight <- sum(y_train == 0) / sum(y_train == 1)
+
+set.seed(263)
+xgb_tuning <- lapply(seq_len(nrow(xgb_grid)), function(i) {
+  params <- list(
+    objective = "binary:logistic",
+    eval_metric = "auc",
+    eta = xgb_grid$eta[i],
+    max_depth = xgb_grid$max_depth[i],
+    min_child_weight = 5,
+    subsample = 0.8,
+    colsample_bytree = 0.8,
+    scale_pos_weight = scale_pos_weight
+  )
+
+  cv_fit <- xgb.cv(
+    params = params,
+    data = dtrain,
+    nrounds = 200,
+    nfold = 3,
+    early_stopping_rounds = 10,
+    verbose = 0
+  )
+
+  data.frame(
+    eta = xgb_grid$eta[i],
+    max_depth = xgb_grid$max_depth[i],
+    best_iteration = cv_fit$best_iteration,
+    CV_AUC = max(cv_fit$evaluation_log$test_auc_mean)
+  )
+}) %>%
+  bind_rows() %>%
+  arrange(desc(CV_AUC))
+
+xgb_tuning
+
+best_xgb <- xgb_tuning[1, ]
+
+xgb_params <- list(
+  objective = "binary:logistic",
+  eval_metric = "auc",
+  eta = best_xgb$eta,
+  max_depth = best_xgb$max_depth,
+  min_child_weight = 5,
+  subsample = 0.8,
+  colsample_bytree = 0.8,
+  scale_pos_weight = scale_pos_weight
+)
+
+set.seed(263)
+xgb_model <- xgb.train(
+  params = xgb_params,
+  data = dtrain,
+  nrounds = best_xgb$best_iteration,
+  verbose = 0
+)
+
+pred_train_xgb <- predict(xgb_model, dtrain)
+pred_test_xgb <- predict(xgb_model, dtest)
+
+xgb_importance <- xgb.importance(
+  feature_names = colnames(x_train),
+  model = xgb_model
+)
+
+head(xgb_importance, 15)
+```
+
 # Final model comparison
 ```{r}
 model_comparison <- rbind(
@@ -508,6 +588,13 @@ model_comparison <- rbind(
     pred_train_rf,
     y_test,
     pred_test_rf
+  ),
+  evaluate_model(
+    "XGBoost",
+    y_train,
+    pred_train_xgb,
+    y_test,
+    pred_test_xgb
   )
 )
 
