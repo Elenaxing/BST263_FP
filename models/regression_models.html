@@ -1,0 +1,1701 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.6.42">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>Modeling Part I</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { display: inline-block; text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="regression_models_files/libs/clipboard/clipboard.min.js"></script>
+<script src="regression_models_files/libs/quarto-html/quarto.js"></script>
+<script src="regression_models_files/libs/quarto-html/popper.min.js"></script>
+<script src="regression_models_files/libs/quarto-html/tippy.umd.min.js"></script>
+<script src="regression_models_files/libs/quarto-html/anchor.min.js"></script>
+<link href="regression_models_files/libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="regression_models_files/libs/quarto-html/quarto-syntax-highlighting-2f5df379a58b258e96c21c0638c20c03.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="regression_models_files/libs/bootstrap/bootstrap.min.js"></script>
+<link href="regression_models_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="regression_models_files/libs/bootstrap/bootstrap-1bc8a17f135ab3d594c857e9f48e611b.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+
+
+</head>
+
+<body class="fullcontent">
+
+<div id="quarto-content" class="page-columns page-rows-contents page-layout-article">
+
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Modeling Part I</h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<section id="setup" class="level1">
+<h1>Setup</h1>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co">#install.packages(c("survey", "mgcv", "glmnet", "dplyr"))</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(survey)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Warning: package 'survey' was built under R version 4.5.3</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Loading required package: grid</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Loading required package: Matrix</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Loading required package: survival</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>
+Attaching package: 'survey'</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>The following object is masked from 'package:graphics':
+
+    dotchart</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(mgcv)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Loading required package: nlme</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>This is mgcv 1.9-3. For overview type 'help("mgcv-package")'.</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(glmnet)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Warning: package 'glmnet' was built under R version 4.5.2</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Loaded glmnet 4.1-10</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(dplyr)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Warning: package 'dplyr' was built under R version 4.5.2</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>
+Attaching package: 'dplyr'</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>The following object is masked from 'package:nlme':
+
+    collapse</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>The following objects are masked from 'package:stats':
+
+    filter, lag</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>The following objects are masked from 'package:base':
+
+    intersect, setdiff, setequal, union</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(pROC)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Warning: package 'pROC' was built under R version 4.5.3</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Type 'citation("pROC")' for a citation.</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>
+Attaching package: 'pROC'</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>The following objects are masked from 'package:stats':
+
+    cov, smooth, var</code></pre>
+</div>
+</div>
+</section>
+<section id="survey-design" class="level1">
+<h1>Survey design</h1>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb25"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a>df <span class="ot">&lt;-</span> <span class="fu">readRDS</span>(<span class="st">"../data/brfss2024_clean.rds"</span>)</span>
+<span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a><span class="co"># create survey design object</span></span>
+<span id="cb25-4"><a href="#cb25-4" aria-hidden="true" tabindex="-1"></a><span class="fu">options</span>(<span class="at">survey.lonely.psu =</span> <span class="st">"adjust"</span>)</span>
+<span id="cb25-5"><a href="#cb25-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-6"><a href="#cb25-6" aria-hidden="true" tabindex="-1"></a>brfss_design <span class="ot">&lt;-</span> <span class="fu">svydesign</span>(</span>
+<span id="cb25-7"><a href="#cb25-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">id =</span> <span class="sc">~</span>PSU,</span>
+<span id="cb25-8"><a href="#cb25-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">strata =</span> <span class="sc">~</span>STSTR,</span>
+<span id="cb25-9"><a href="#cb25-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">weights =</span> <span class="sc">~</span>WEIGHT,</span>
+<span id="cb25-10"><a href="#cb25-10" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> df,</span>
+<span id="cb25-11"><a href="#cb25-11" aria-hidden="true" tabindex="-1"></a>  <span class="at">nest =</span> <span class="cn">TRUE</span></span>
+<span id="cb25-12"><a href="#cb25-12" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+<section id="logistic-regression" class="level1">
+<h1>Logistic Regression</h1>
+<section id="weighted" class="level2">
+<h2 class="anchored" data-anchor-id="weighted">weighted</h2>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb26"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a>weighted_glm <span class="ot">&lt;-</span> <span class="fu">svyglm</span>(</span>
+<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a>  MEDCOST1 <span class="sc">~</span> region <span class="sc">+</span></span>
+<span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a>    rurality <span class="sc">+</span></span>
+<span id="cb26-4"><a href="#cb26-4" aria-hidden="true" tabindex="-1"></a>    sex <span class="sc">+</span></span>
+<span id="cb26-5"><a href="#cb26-5" aria-hidden="true" tabindex="-1"></a>    agegroup <span class="sc">+</span></span>
+<span id="cb26-6"><a href="#cb26-6" aria-hidden="true" tabindex="-1"></a>    race <span class="sc">+</span></span>
+<span id="cb26-7"><a href="#cb26-7" aria-hidden="true" tabindex="-1"></a>    income <span class="sc">+</span></span>
+<span id="cb26-8"><a href="#cb26-8" aria-hidden="true" tabindex="-1"></a>    maritalstatus <span class="sc">+</span></span>
+<span id="cb26-9"><a href="#cb26-9" aria-hidden="true" tabindex="-1"></a>    education <span class="sc">+</span></span>
+<span id="cb26-10"><a href="#cb26-10" aria-hidden="true" tabindex="-1"></a>    employment <span class="sc">+</span></span>
+<span id="cb26-11"><a href="#cb26-11" aria-hidden="true" tabindex="-1"></a>    healthstatus <span class="sc">+</span></span>
+<span id="cb26-12"><a href="#cb26-12" aria-hidden="true" tabindex="-1"></a>    physhlth_days <span class="sc">+</span></span>
+<span id="cb26-13"><a href="#cb26-13" aria-hidden="true" tabindex="-1"></a>    menthlth_days <span class="sc">+</span></span>
+<span id="cb26-14"><a href="#cb26-14" aria-hidden="true" tabindex="-1"></a>    depression <span class="sc">+</span></span>
+<span id="cb26-15"><a href="#cb26-15" aria-hidden="true" tabindex="-1"></a>    chronic_count <span class="sc">+</span></span>
+<span id="cb26-16"><a href="#cb26-16" aria-hidden="true" tabindex="-1"></a>    any_disability <span class="sc">+</span></span>
+<span id="cb26-17"><a href="#cb26-17" aria-hidden="true" tabindex="-1"></a>    insurance <span class="sc">+</span></span>
+<span id="cb26-18"><a href="#cb26-18" aria-hidden="true" tabindex="-1"></a>    pers_doc <span class="sc">+</span></span>
+<span id="cb26-19"><a href="#cb26-19" aria-hidden="true" tabindex="-1"></a>    last_checkup,</span>
+<span id="cb26-20"><a href="#cb26-20" aria-hidden="true" tabindex="-1"></a>  <span class="at">design =</span> brfss_design,</span>
+<span id="cb26-21"><a href="#cb26-21" aria-hidden="true" tabindex="-1"></a>  <span class="at">family =</span> <span class="fu">quasibinomial</span>()</span>
+<span id="cb26-22"><a href="#cb26-22" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb26-23"><a href="#cb26-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-24"><a href="#cb26-24" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(weighted_glm)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+Call:
+svyglm(formula = MEDCOST1 ~ region + rurality + sex + agegroup + 
+    race + income + maritalstatus + education + employment + 
+    healthstatus + physhlth_days + menthlth_days + depression + 
+    chronic_count + any_disability + insurance + pers_doc + last_checkup, 
+    design = brfss_design, family = quasibinomial())
+
+Survey design:
+svydesign(id = ~PSU, strata = ~STSTR, weights = ~WEIGHT, data = df, 
+    nest = TRUE)
+
+Coefficients:
+                                    Estimate Std. Error t value Pr(&gt;|t|)    
+(Intercept)                        -4.691413   0.072929 -64.328  &lt; 2e-16 ***
+regionNortheast                    -0.140600   0.036907  -3.810 0.000139 ***
+regionMidwest                      -0.209880   0.029923  -7.014 2.32e-12 ***
+regionWest                         -0.153937   0.039366  -3.910 9.21e-05 ***
+ruralityRural                      -0.044957   0.044715  -1.005 0.314700    
+sexFemale                           0.262394   0.028608   9.172  &lt; 2e-16 ***
+agegroup18-29                       0.519326   0.055126   9.421  &lt; 2e-16 ***
+agegroup30-39                       0.604619   0.053207  11.364  &lt; 2e-16 ***
+agegroup40-49                       0.537671   0.053010  10.143  &lt; 2e-16 ***
+agegroup50-59                       0.197687   0.050802   3.891 9.97e-05 ***
+agegroup70+                        -0.739938   0.074944  -9.873  &lt; 2e-16 ***
+raceBlack_NH                        0.301708   0.042209   7.148 8.83e-13 ***
+raceAsian_NH                       -0.009093   0.086366  -0.105 0.916155    
+raceAIAN_NH                         0.112178   0.121117   0.926 0.354346    
+raceHispanic                        0.292639   0.039928   7.329 2.32e-13 ***
+raceOther_NH                        0.316576   0.058954   5.370 7.88e-08 ***
+incomeUpper_mid                     0.809395   0.044899  18.027  &lt; 2e-16 ***
+incomeMiddle                        1.075294   0.048742  22.061  &lt; 2e-16 ***
+incomeLow_mid                       1.206664   0.063806  18.911  &lt; 2e-16 ***
+incomeLow                           1.089458   0.069329  15.714  &lt; 2e-16 ***
+incomeUnknown                       0.711937   0.053896  13.209  &lt; 2e-16 ***
+maritalstatusCurrently_not_married  0.031924   0.031344   1.018 0.308451    
+educationSome_college               0.160747   0.035419   4.538 5.67e-06 ***
+educationHS_grad                    0.004378   0.038145   0.115 0.908623    
+educationLess_than_HS               0.031385   0.054124   0.580 0.562011    
+employmentUnemployed                0.119893   0.050529   2.373 0.017656 *  
+employmentNot_in_labor             -0.252255   0.051518  -4.896 9.76e-07 ***
+employmentRetired                  -0.649939   0.070911  -9.166  &lt; 2e-16 ***
+employmentUnable_to_work           -0.384161   0.057048  -6.734 1.65e-11 ***
+healthstatusVery_good               0.306520   0.051832   5.914 3.35e-09 ***
+healthstatusGood                    0.572824   0.049914  11.476  &lt; 2e-16 ***
+healthstatusFair                    0.940153   0.056894  16.525  &lt; 2e-16 ***
+healthstatusPoor                    0.944822   0.080633  11.718  &lt; 2e-16 ***
+physhlth_days                       0.015085   0.001722   8.759  &lt; 2e-16 ***
+menthlth_days                       0.027962   0.001493  18.726  &lt; 2e-16 ***
+depression                          0.292543   0.033016   8.861  &lt; 2e-16 ***
+chronic_count                       0.105422   0.015844   6.654 2.86e-11 ***
+any_disability                      0.522278   0.033828  15.439  &lt; 2e-16 ***
+insurancePrivate                    0.202203   0.051122   3.955 7.64e-05 ***
+insuranceMedicare                  -0.268649   0.054426  -4.936 7.97e-07 ***
+insuranceMedicaid_CHIP             -0.205516   0.050430  -4.075 4.60e-05 ***
+insuranceMilitary_VA               -0.808437   0.113346  -7.132 9.88e-13 ***
+insuranceOther_govt                 0.234796   0.058959   3.982 6.83e-05 ***
+insuranceUninsured                  1.366496   0.047731  28.629  &lt; 2e-16 ***
+pers_docNo                          0.238646   0.040784   5.851 4.88e-09 ***
+last_checkup1_2yrs                  0.447835   0.040317  11.108  &lt; 2e-16 ***
+last_checkup2_5yrs                  0.694883   0.050632  13.724  &lt; 2e-16 ***
+last_checkupOver_5yrs               0.570573   0.055778  10.229  &lt; 2e-16 ***
+last_checkupNever                   0.438859   0.148436   2.957 0.003111 ** 
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+(Dispersion parameter for quasibinomial family taken to be 0.9516301)
+
+Number of Fisher Scoring iterations: 6</code></pre>
+</div>
+</div>
+</section>
+<section id="unweighted" class="level2">
+<h2 class="anchored" data-anchor-id="unweighted">Unweighted</h2>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb28"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a>unweighted_glm <span class="ot">&lt;-</span> <span class="fu">glm</span>(</span>
+<span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a>  MEDCOST1 <span class="sc">~</span>  . <span class="sc">-</span> PSU <span class="sc">-</span> STSTR <span class="sc">-</span> WEIGHT,</span>
+<span id="cb28-3"><a href="#cb28-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> df,</span>
+<span id="cb28-4"><a href="#cb28-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">family =</span> <span class="fu">binomial</span>()</span>
+<span id="cb28-5"><a href="#cb28-5" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb28-6"><a href="#cb28-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-7"><a href="#cb28-7" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(unweighted_glm)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+Call:
+glm(formula = MEDCOST1 ~ . - PSU - STSTR - WEIGHT, family = binomial(), 
+    data = df)
+
+Coefficients:
+                                     Estimate Std. Error  z value Pr(&gt;|z|)    
+(Intercept)                        -4.7545417  0.0372363 -127.686  &lt; 2e-16 ***
+regionNortheast                    -0.1567707  0.0191030   -8.207 2.28e-16 ***
+regionMidwest                      -0.1809101  0.0174242  -10.383  &lt; 2e-16 ***
+regionWest                         -0.0877428  0.0182142   -4.817 1.46e-06 ***
+ruralityRural                      -0.0573046  0.0197335   -2.904  0.00369 ** 
+sexFemale                           0.2417438  0.0137339   17.602  &lt; 2e-16 ***
+agegroup18-29                       0.6087968  0.0263054   23.143  &lt; 2e-16 ***
+agegroup30-39                       0.6913887  0.0250124   27.642  &lt; 2e-16 ***
+agegroup40-49                       0.5605220  0.0243452   23.024  &lt; 2e-16 ***
+agegroup50-59                       0.2827411  0.0236364   11.962  &lt; 2e-16 ***
+agegroup70+                        -0.7387136  0.0304268  -24.278  &lt; 2e-16 ***
+raceBlack_NH                        0.3002491  0.0229682   13.072  &lt; 2e-16 ***
+raceAsian_NH                       -0.0041596  0.0431883   -0.096  0.92327    
+raceAIAN_NH                         0.1809320  0.0448690    4.032 5.52e-05 ***
+raceHispanic                        0.3441004  0.0194568   17.685  &lt; 2e-16 ***
+raceOther_NH                        0.2654812  0.0303501    8.747  &lt; 2e-16 ***
+incomeUpper_mid                     0.7564848  0.0225212   33.590  &lt; 2e-16 ***
+incomeMiddle                        1.1350367  0.0240875   47.121  &lt; 2e-16 ***
+incomeLow_mid                       1.2462585  0.0299033   41.676  &lt; 2e-16 ***
+incomeLow                           1.1149415  0.0337364   33.049  &lt; 2e-16 ***
+incomeUnknown                       0.7335214  0.0273271   26.842  &lt; 2e-16 ***
+maritalstatusCurrently_not_married  0.0432346  0.0146558    2.950  0.00318 ** 
+educationSome_college               0.0907360  0.0170485    5.322 1.03e-07 ***
+educationHS_grad                   -0.0344860  0.0177934   -1.938  0.05261 .  
+educationLess_than_HS               0.0425662  0.0262845    1.619  0.10535    
+employmentUnemployed                0.1217801  0.0243630    4.999 5.78e-07 ***
+employmentNot_in_labor             -0.2399319  0.0251680   -9.533  &lt; 2e-16 ***
+employmentRetired                  -0.6805827  0.0291088  -23.381  &lt; 2e-16 ***
+employmentUnable_to_work           -0.3964941  0.0266539  -14.876  &lt; 2e-16 ***
+healthstatusVery_good               0.2849701  0.0260830   10.925  &lt; 2e-16 ***
+healthstatusGood                    0.6147484  0.0249571   24.632  &lt; 2e-16 ***
+healthstatusFair                    0.9204390  0.0281932   32.648  &lt; 2e-16 ***
+healthstatusPoor                    0.9865343  0.0369940   26.667  &lt; 2e-16 ***
+physhlth_days                       0.0129389  0.0008069   16.036  &lt; 2e-16 ***
+menthlth_days                       0.0270971  0.0007089   38.223  &lt; 2e-16 ***
+depression                          0.2795372  0.0159769   17.496  &lt; 2e-16 ***
+chronic_count                       0.1037303  0.0064330   16.125  &lt; 2e-16 ***
+any_disability                      0.5306721  0.0158186   33.547  &lt; 2e-16 ***
+insurancePrivate                    0.2155210  0.0238903    9.021  &lt; 2e-16 ***
+insuranceMedicare                  -0.2981217  0.0252097  -11.826  &lt; 2e-16 ***
+insuranceMedicaid_CHIP             -0.3001107  0.0248003  -12.101  &lt; 2e-16 ***
+insuranceMilitary_VA               -0.8784311  0.0478883  -18.343  &lt; 2e-16 ***
+insuranceOther_govt                 0.1551054  0.0263230    5.892 3.81e-09 ***
+insuranceUninsured                  1.3837834  0.0224937   61.519  &lt; 2e-16 ***
+pers_docNo                          0.2588448  0.0191459   13.520  &lt; 2e-16 ***
+last_checkup1_2yrs                  0.5661592  0.0198051   28.587  &lt; 2e-16 ***
+last_checkup2_5yrs                  0.6945411  0.0244268   28.434  &lt; 2e-16 ***
+last_checkupOver_5yrs               0.6219309  0.0271060   22.944  &lt; 2e-16 ***
+last_checkupNever                   0.3388418  0.0608578    5.568 2.58e-08 ***
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+(Dispersion parameter for binomial family taken to be 1)
+
+    Null deviance: 229188  on 377794  degrees of freedom
+Residual deviance: 171823  on 377746  degrees of freedom
+AIC: 171921
+
+Number of Fisher Scoring iterations: 6</code></pre>
+</div>
+</div>
+</section>
+<section id="comparison" class="level2">
+<h2 class="anchored" data-anchor-id="comparison">Comparison</h2>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb30"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a><span class="co"># model summary comparison table</span></span>
+<span id="cb30-2"><a href="#cb30-2" aria-hidden="true" tabindex="-1"></a>weighted_glm_summary <span class="ot">&lt;-</span> <span class="fu">summary</span>(weighted_glm)<span class="sc">$</span>coefficients</span>
+<span id="cb30-3"><a href="#cb30-3" aria-hidden="true" tabindex="-1"></a>unweighted_glm_summary <span class="ot">&lt;-</span> <span class="fu">summary</span>(unweighted_glm)<span class="sc">$</span>coefficients</span>
+<span id="cb30-4"><a href="#cb30-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb30-5"><a href="#cb30-5" aria-hidden="true" tabindex="-1"></a>weighted_glm_df <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
+<span id="cb30-6"><a href="#cb30-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">Variable =</span> <span class="fu">rownames</span>(weighted_glm_summary),</span>
+<span id="cb30-7"><a href="#cb30-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">Weighted_Estimate =</span> weighted_glm_summary[, <span class="dv">1</span>],</span>
+<span id="cb30-8"><a href="#cb30-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">Weighted_SE =</span> weighted_glm_summary[, <span class="dv">2</span>],</span>
+<span id="cb30-9"><a href="#cb30-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">Weighted_p =</span> weighted_glm_summary[, <span class="dv">4</span>]</span>
+<span id="cb30-10"><a href="#cb30-10" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb30-11"><a href="#cb30-11" aria-hidden="true" tabindex="-1"></a>unweighted_glm_df <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
+<span id="cb30-12"><a href="#cb30-12" aria-hidden="true" tabindex="-1"></a>  <span class="at">Variable =</span> <span class="fu">rownames</span>(unweighted_glm_summary),</span>
+<span id="cb30-13"><a href="#cb30-13" aria-hidden="true" tabindex="-1"></a>  <span class="at">Unweighted_Estimate =</span> unweighted_glm_summary[, <span class="dv">1</span>],</span>
+<span id="cb30-14"><a href="#cb30-14" aria-hidden="true" tabindex="-1"></a>  <span class="at">Unweighted_SE =</span> unweighted_glm_summary[, <span class="dv">2</span>],</span>
+<span id="cb30-15"><a href="#cb30-15" aria-hidden="true" tabindex="-1"></a>  <span class="at">Unweighted_p =</span> unweighted_glm_summary[, <span class="dv">4</span>]</span>
+<span id="cb30-16"><a href="#cb30-16" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb30-17"><a href="#cb30-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb30-18"><a href="#cb30-18" aria-hidden="true" tabindex="-1"></a><span class="co"># OR and 95% CI</span></span>
+<span id="cb30-19"><a href="#cb30-19" aria-hidden="true" tabindex="-1"></a>weighted_glm_df<span class="sc">$</span>Weighted_OR <span class="ot">&lt;-</span> <span class="fu">exp</span>(weighted_glm_df<span class="sc">$</span>Weighted_Estimate)</span>
+<span id="cb30-20"><a href="#cb30-20" aria-hidden="true" tabindex="-1"></a>weighted_ci <span class="ot">&lt;-</span> <span class="fu">exp</span>(<span class="fu">confint</span>(weighted_glm))</span>
+<span id="cb30-21"><a href="#cb30-21" aria-hidden="true" tabindex="-1"></a>weighted_glm_df<span class="sc">$</span>Weighted_OR_lower <span class="ot">&lt;-</span> weighted_ci[, <span class="dv">1</span>]</span>
+<span id="cb30-22"><a href="#cb30-22" aria-hidden="true" tabindex="-1"></a>weighted_glm_df<span class="sc">$</span>Weighted_OR_upper <span class="ot">&lt;-</span> weighted_ci[, <span class="dv">2</span>]</span>
+<span id="cb30-23"><a href="#cb30-23" aria-hidden="true" tabindex="-1"></a>unweighted_glm_df<span class="sc">$</span>Unweighted_OR <span class="ot">&lt;-</span> <span class="fu">exp</span>(unweighted_glm_df<span class="sc">$</span>Unweighted_Estimate)</span>
+<span id="cb30-24"><a href="#cb30-24" aria-hidden="true" tabindex="-1"></a>unweighted_ci <span class="ot">&lt;-</span> <span class="fu">exp</span>(<span class="fu">confint.default</span>(unweighted_glm))</span>
+<span id="cb30-25"><a href="#cb30-25" aria-hidden="true" tabindex="-1"></a>unweighted_glm_df<span class="sc">$</span>Unweighted_OR_lower <span class="ot">&lt;-</span> unweighted_ci[, <span class="dv">1</span>]</span>
+<span id="cb30-26"><a href="#cb30-26" aria-hidden="true" tabindex="-1"></a>unweighted_glm_df<span class="sc">$</span>Unweighted_OR_upper <span class="ot">&lt;-</span> unweighted_ci[, <span class="dv">2</span>]</span>
+<span id="cb30-27"><a href="#cb30-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb30-28"><a href="#cb30-28" aria-hidden="true" tabindex="-1"></a>comparison_glm_table <span class="ot">&lt;-</span> <span class="fu">merge</span>(</span>
+<span id="cb30-29"><a href="#cb30-29" aria-hidden="true" tabindex="-1"></a>  weighted_glm_df,</span>
+<span id="cb30-30"><a href="#cb30-30" aria-hidden="true" tabindex="-1"></a>  unweighted_glm_df,</span>
+<span id="cb30-31"><a href="#cb30-31" aria-hidden="true" tabindex="-1"></a>  <span class="at">by =</span> <span class="st">"Variable"</span></span>
+<span id="cb30-32"><a href="#cb30-32" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb30-33"><a href="#cb30-33" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb30-34"><a href="#cb30-34" aria-hidden="true" tabindex="-1"></a>comparison_glm_table <span class="ot">&lt;-</span> comparison_glm_table <span class="sc">%&gt;%</span></span>
+<span id="cb30-35"><a href="#cb30-35" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="fu">across</span>(<span class="fu">where</span>(is.numeric), round, <span class="dv">3</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Warning: There was 1 warning in `mutate()`.
+ℹ In argument: `across(where(is.numeric), round, 3)`.
+Caused by warning:
+! The `...` argument of `across()` is deprecated as of dplyr 1.1.0.
+Supply arguments directly to `.fns` through an anonymous function instead.
+
+  # Previously
+  across(a:b, mean, na.rm = TRUE)
+
+  # Now
+  across(a:b, \(x) mean(x, na.rm = TRUE))</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb32"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a>comparison_glm_table</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>                             Variable Weighted_Estimate Weighted_SE Weighted_p
+1                         (Intercept)            -4.691       0.073      0.000
+2                       agegroup18-29             0.519       0.055      0.000
+3                       agegroup30-39             0.605       0.053      0.000
+4                       agegroup40-49             0.538       0.053      0.000
+5                       agegroup50-59             0.198       0.051      0.000
+6                         agegroup70+            -0.740       0.075      0.000
+7                      any_disability             0.522       0.034      0.000
+8                       chronic_count             0.105       0.016      0.000
+9                          depression             0.293       0.033      0.000
+10                   educationHS_grad             0.004       0.038      0.909
+11              educationLess_than_HS             0.031       0.054      0.562
+12              educationSome_college             0.161       0.035      0.000
+13             employmentNot_in_labor            -0.252       0.052      0.000
+14                  employmentRetired            -0.650       0.071      0.000
+15           employmentUnable_to_work            -0.384       0.057      0.000
+16               employmentUnemployed             0.120       0.051      0.018
+17                   healthstatusFair             0.940       0.057      0.000
+18                   healthstatusGood             0.573       0.050      0.000
+19                   healthstatusPoor             0.945       0.081      0.000
+20              healthstatusVery_good             0.307       0.052      0.000
+21                          incomeLow             1.089       0.069      0.000
+22                      incomeLow_mid             1.207       0.064      0.000
+23                       incomeMiddle             1.075       0.049      0.000
+24                      incomeUnknown             0.712       0.054      0.000
+25                    incomeUpper_mid             0.809       0.045      0.000
+26             insuranceMedicaid_CHIP            -0.206       0.050      0.000
+27                  insuranceMedicare            -0.269       0.054      0.000
+28               insuranceMilitary_VA            -0.808       0.113      0.000
+29                insuranceOther_govt             0.235       0.059      0.000
+30                   insurancePrivate             0.202       0.051      0.000
+31                 insuranceUninsured             1.366       0.048      0.000
+32                 last_checkup1_2yrs             0.448       0.040      0.000
+33                 last_checkup2_5yrs             0.695       0.051      0.000
+34                  last_checkupNever             0.439       0.148      0.003
+35              last_checkupOver_5yrs             0.571       0.056      0.000
+36 maritalstatusCurrently_not_married             0.032       0.031      0.308
+37                      menthlth_days             0.028       0.001      0.000
+38                         pers_docNo             0.239       0.041      0.000
+39                      physhlth_days             0.015       0.002      0.000
+40                        raceAIAN_NH             0.112       0.121      0.354
+41                       raceAsian_NH            -0.009       0.086      0.916
+42                       raceBlack_NH             0.302       0.042      0.000
+43                       raceHispanic             0.293       0.040      0.000
+44                       raceOther_NH             0.317       0.059      0.000
+45                      regionMidwest            -0.210       0.030      0.000
+46                    regionNortheast            -0.141       0.037      0.000
+47                         regionWest            -0.154       0.039      0.000
+48                      ruralityRural            -0.045       0.045      0.315
+49                          sexFemale             0.262       0.029      0.000
+   Weighted_OR Weighted_OR_lower Weighted_OR_upper Unweighted_Estimate
+1        0.009             0.008             0.011              -4.755
+2        1.681             1.509             1.873               0.609
+3        1.831             1.649             2.032               0.691
+4        1.712             1.543             1.899               0.561
+5        1.219             1.103             1.346               0.283
+6        0.477             0.412             0.553              -0.739
+7        1.686             1.578             1.801               0.531
+8        1.111             1.077             1.146               0.104
+9        1.340             1.256             1.429               0.280
+10       1.004             0.932             1.082              -0.034
+11       1.032             0.928             1.147               0.043
+12       1.174             1.096             1.259               0.091
+13       0.777             0.702             0.860              -0.240
+14       0.522             0.454             0.600              -0.681
+15       0.681             0.609             0.762              -0.396
+16       1.127             1.021             1.245               0.122
+17       2.560             2.290             2.862               0.920
+18       1.773             1.608             1.956               0.615
+19       2.572             2.196             3.013               0.987
+20       1.359             1.227             1.504               0.285
+21       2.973             2.595             3.405               1.115
+22       3.342             2.949             3.788               1.246
+23       2.931             2.664             3.225               1.135
+24       2.038             1.834             2.265               0.734
+25       2.247             2.057             2.453               0.756
+26       0.814             0.738             0.899              -0.300
+27       0.764             0.687             0.850              -0.298
+28       0.446             0.357             0.556              -0.878
+29       1.265             1.127             1.420               0.155
+30       1.224             1.107             1.353               0.216
+31       3.922             3.571             4.306               1.384
+32       1.565             1.446             1.694               0.566
+33       2.003             1.814             2.212               0.695
+34       1.551             1.159             2.075               0.339
+35       1.769             1.586             1.974               0.622
+36       1.032             0.971             1.098               0.043
+37       1.028             1.025             1.031               0.027
+38       1.270             1.172             1.375               0.259
+39       1.015             1.012             1.019               0.013
+40       1.119             0.882             1.418               0.181
+41       0.991             0.837             1.174              -0.004
+42       1.352             1.245             1.469               0.300
+43       1.340             1.239             1.449               0.344
+44       1.372             1.223             1.541               0.265
+45       0.811             0.765             0.860              -0.181
+46       0.869             0.808             0.934              -0.157
+47       0.857             0.794             0.926              -0.088
+48       0.956             0.876             1.044              -0.057
+49       1.300             1.229             1.375               0.242
+   Unweighted_SE Unweighted_p Unweighted_OR Unweighted_OR_lower
+1          0.037        0.000         0.009               0.008
+2          0.026        0.000         1.838               1.746
+3          0.025        0.000         1.996               1.901
+4          0.024        0.000         1.752               1.670
+5          0.024        0.000         1.327               1.267
+6          0.030        0.000         0.478               0.450
+7          0.016        0.000         1.700               1.648
+8          0.006        0.000         1.109               1.095
+9          0.016        0.000         1.323               1.282
+10         0.018        0.053         0.966               0.933
+11         0.026        0.105         1.043               0.991
+12         0.017        0.000         1.095               1.059
+13         0.025        0.000         0.787               0.749
+14         0.029        0.000         0.506               0.478
+15         0.027        0.000         0.673               0.638
+16         0.024        0.000         1.130               1.077
+17         0.028        0.000         2.510               2.375
+18         0.025        0.000         1.849               1.761
+19         0.037        0.000         2.682               2.494
+20         0.026        0.000         1.330               1.263
+21         0.034        0.000         3.049               2.854
+22         0.030        0.000         3.477               3.279
+23         0.024        0.000         3.111               2.968
+24         0.027        0.000         2.082               1.974
+25         0.023        0.000         2.131               2.039
+26         0.025        0.000         0.741               0.706
+27         0.025        0.000         0.742               0.706
+28         0.048        0.000         0.415               0.378
+29         0.026        0.000         1.168               1.109
+30         0.024        0.000         1.241               1.184
+31         0.022        0.000         3.990               3.818
+32         0.020        0.000         1.761               1.694
+33         0.024        0.000         2.003               1.909
+34         0.061        0.000         1.403               1.246
+35         0.027        0.000         1.863               1.766
+36         0.015        0.003         1.044               1.015
+37         0.001        0.000         1.027               1.026
+38         0.019        0.000         1.295               1.248
+39         0.001        0.000         1.013               1.011
+40         0.045        0.000         1.198               1.097
+41         0.043        0.923         0.996               0.915
+42         0.023        0.000         1.350               1.291
+43         0.019        0.000         1.411               1.358
+44         0.030        0.000         1.304               1.229
+45         0.017        0.000         0.835               0.806
+46         0.019        0.000         0.855               0.823
+47         0.018        0.000         0.916               0.884
+48         0.020        0.004         0.944               0.908
+49         0.014        0.000         1.273               1.240
+   Unweighted_OR_upper
+1                0.009
+2                1.935
+3                2.097
+4                1.837
+5                1.390
+6                0.507
+7                1.754
+8                1.123
+9                1.365
+10               1.000
+11               1.099
+12               1.132
+13               0.826
+14               0.536
+15               0.709
+16               1.185
+17               2.653
+18               1.942
+19               2.884
+20               1.399
+21               3.258
+22               3.687
+23               3.262
+24               2.197
+25               2.227
+26               0.778
+27               0.780
+28               0.456
+29               1.230
+30               1.300
+31               4.170
+32               1.831
+33               2.101
+34               1.581
+35               1.964
+36               1.075
+37               1.029
+38               1.345
+39               1.015
+40               1.308
+41               1.084
+42               1.412
+43               1.466
+44               1.384
+45               0.864
+46               0.888
+47               0.949
+48               0.982
+49               1.308</code></pre>
+</div>
+</div>
+</section>
+</section>
+<section id="logistic-regression-with-lasso" class="level1">
+<h1>Logistic regression (with Lasso)</h1>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb34"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a>x <span class="ot">&lt;-</span> <span class="fu">model.matrix</span>(</span>
+<span id="cb34-2"><a href="#cb34-2" aria-hidden="true" tabindex="-1"></a>  MEDCOST1 <span class="sc">~</span> . <span class="sc">-</span> PSU <span class="sc">-</span> STSTR <span class="sc">-</span> WEIGHT,</span>
+<span id="cb34-3"><a href="#cb34-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> df</span>
+<span id="cb34-4"><a href="#cb34-4" aria-hidden="true" tabindex="-1"></a>)[, <span class="sc">-</span><span class="dv">1</span>]</span>
+<span id="cb34-5"><a href="#cb34-5" aria-hidden="true" tabindex="-1"></a>y <span class="ot">&lt;-</span> df<span class="sc">$</span>MEDCOST1</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<section id="weighted-1" class="level2">
+<h2 class="anchored" data-anchor-id="weighted-1">Weighted</h2>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb35"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb35-1"><a href="#cb35-1" aria-hidden="true" tabindex="-1"></a>weighted_lasso <span class="ot">&lt;-</span> <span class="fu">cv.glmnet</span>(</span>
+<span id="cb35-2"><a href="#cb35-2" aria-hidden="true" tabindex="-1"></a>  x,</span>
+<span id="cb35-3"><a href="#cb35-3" aria-hidden="true" tabindex="-1"></a>  y,</span>
+<span id="cb35-4"><a href="#cb35-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">family =</span> <span class="st">"binomial"</span>,</span>
+<span id="cb35-5"><a href="#cb35-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">alpha =</span> <span class="dv">1</span>,</span>
+<span id="cb35-6"><a href="#cb35-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">nfolds =</span> <span class="dv">10</span>,</span>
+<span id="cb35-7"><a href="#cb35-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">weights =</span> df<span class="sc">$</span>WEIGHT</span>
+<span id="cb35-8"><a href="#cb35-8" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+<section id="unweighted-1" class="level2">
+<h2 class="anchored" data-anchor-id="unweighted-1">Unweighted</h2>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb36"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb36-1"><a href="#cb36-1" aria-hidden="true" tabindex="-1"></a>unweighted_lasso <span class="ot">&lt;-</span> <span class="fu">cv.glmnet</span>(</span>
+<span id="cb36-2"><a href="#cb36-2" aria-hidden="true" tabindex="-1"></a>  x,</span>
+<span id="cb36-3"><a href="#cb36-3" aria-hidden="true" tabindex="-1"></a>  y,</span>
+<span id="cb36-4"><a href="#cb36-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">family =</span> <span class="st">"binomial"</span>,</span>
+<span id="cb36-5"><a href="#cb36-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">alpha =</span> <span class="dv">1</span>,</span>
+<span id="cb36-6"><a href="#cb36-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">nfolds =</span> <span class="dv">10</span></span>
+<span id="cb36-7"><a href="#cb36-7" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+<section id="comparison-1" class="level2">
+<h2 class="anchored" data-anchor-id="comparison-1">Comparison</h2>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb37"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb37-1"><a href="#cb37-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Lasso selected variables</span></span>
+<span id="cb37-2"><a href="#cb37-2" aria-hidden="true" tabindex="-1"></a>lasso_out <span class="ot">&lt;-</span> <span class="fu">cbind</span>(<span class="fu">coef</span>(weighted_lasso, <span class="at">s =</span> <span class="st">"lambda.1se"</span>),</span>
+<span id="cb37-3"><a href="#cb37-3" aria-hidden="true" tabindex="-1"></a>                   <span class="fu">coef</span>(unweighted_lasso, <span class="at">s =</span> <span class="st">"lambda.1se"</span>))</span>
+<span id="cb37-4"><a href="#cb37-4" aria-hidden="true" tabindex="-1"></a><span class="fu">colnames</span>(lasso_out) <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"Weighted"</span>, <span class="st">"Unweighted"</span>)</span>
+<span id="cb37-5"><a href="#cb37-5" aria-hidden="true" tabindex="-1"></a>lasso_out</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>49 x 2 sparse Matrix of class "dgCMatrix"
+                                        Weighted  Unweighted
+(Intercept)                        -4.0348284617 -4.12993531
+regionNortheast                    -0.0613860416 -0.04940192
+regionMidwest                      -0.1239641759 -0.06408743
+regionWest                         -0.0715066282  .         
+ruralityRural                       .             .         
+sexFemale                           0.2235878888  0.19831129
+agegroup18-29                       0.2821355766  0.40195554
+agegroup30-39                       0.3650694336  0.47885562
+agegroup40-49                       0.3013922207  0.35305391
+agegroup50-59                       .             0.09731788
+agegroup70+                        -0.7218794131 -0.71466172
+raceBlack_NH                        0.2541676151  0.26221648
+raceAsian_NH                        .             .         
+raceAIAN_NH                         .             0.05777292
+raceHispanic                        0.2733204783  0.33525130
+raceOther_NH                        0.2326810868  0.18750063
+incomeUpper_mid                     0.5670177974  0.44695499
+incomeMiddle                        0.8166667671  0.78940374
+incomeLow_mid                       0.9000803334  0.84097636
+incomeLow                           0.7702039650  0.68560066
+incomeUnknown                       0.4159302024  0.34677651
+maritalstatusCurrently_not_married  0.0589087418  0.07497637
+educationSome_college               0.1215489072  0.07253984
+educationHS_grad                    .             .         
+educationLess_than_HS               0.0001845089  0.03556050
+employmentUnemployed                0.1396764988  0.15557177
+employmentNot_in_labor             -0.1432127951 -0.09988567
+employmentRetired                  -0.6449497402 -0.65002939
+employmentUnable_to_work           -0.2544892587 -0.23351956
+healthstatusVery_good               0.0064850573  .         
+healthstatusGood                    0.3027112910  0.33239525
+healthstatusFair                    0.6675200434  0.63244060
+healthstatusPoor                    0.6361387211  0.65968341
+physhlth_days                       0.0139198762  0.01193355
+menthlth_days                       0.0290367030  0.02841200
+depression                          0.2866585614  0.27432696
+chronic_count                       0.0706090267  0.07135376
+any_disability                      0.5052861511  0.50542639
+insurancePrivate                    0.1634089780  0.17534732
+insuranceMedicare                  -0.2201861551 -0.23365253
+insuranceMedicaid_CHIP             -0.0621608852 -0.12013820
+insuranceMilitary_VA               -0.6258358704 -0.64778341
+insuranceOther_govt                 0.2604657449  0.19727816
+insuranceUninsured                  1.4236618279  1.45824251
+pers_docNo                          0.2577914177  0.27910112
+last_checkup1_2yrs                  0.3878443073  0.49170894
+last_checkup2_5yrs                  0.6226157185  0.61091840
+last_checkupOver_5yrs               0.4827015819  0.51938517
+last_checkupNever                   0.3009314443  0.19077966</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb39"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb39-1"><a href="#cb39-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Lasso plot</span></span>
+<span id="cb39-2"><a href="#cb39-2" aria-hidden="true" tabindex="-1"></a><span class="fu">par</span>(<span class="at">mfrow=</span><span class="fu">c</span>(<span class="dv">2</span>,<span class="dv">2</span>))</span>
+<span id="cb39-3"><a href="#cb39-3" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(weighted_lasso<span class="sc">$</span>glmnet.fit, <span class="at">xvar =</span> <span class="st">"lambda"</span>)</span>
+<span id="cb39-4"><a href="#cb39-4" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(weighted_lasso)</span>
+<span id="cb39-5"><a href="#cb39-5" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(unweighted_lasso<span class="sc">$</span>glmnet.fit, <span class="at">xvar =</span> <span class="st">"lambda"</span>)</span>
+<span id="cb39-6"><a href="#cb39-6" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(unweighted_lasso)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="regression_models_files/figure-html/unnamed-chunk-9-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+<div class="sourceCode cell-code" id="cb40"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb40-1"><a href="#cb40-1" aria-hidden="true" tabindex="-1"></a><span class="co"># AUC comparison</span></span>
+<span id="cb40-2"><a href="#cb40-2" aria-hidden="true" tabindex="-1"></a>weighted_lasso_pred <span class="ot">&lt;-</span> <span class="fu">predict</span>(weighted_lasso, <span class="at">newx =</span> x, <span class="at">s =</span> <span class="st">"lambda.1se"</span>, <span class="at">type =</span> <span class="st">"response"</span>)</span>
+<span id="cb40-3"><a href="#cb40-3" aria-hidden="true" tabindex="-1"></a>unweighted_lasso_pred <span class="ot">&lt;-</span> <span class="fu">predict</span>(unweighted_lasso, <span class="at">newx =</span> x, <span class="at">s =</span> <span class="st">"lambda.1se"</span>, <span class="at">type =</span> <span class="st">"response"</span>)</span>
+<span id="cb40-4"><a href="#cb40-4" aria-hidden="true" tabindex="-1"></a>weighted_lasso_roc_obj <span class="ot">&lt;-</span> <span class="fu">roc</span>(y, <span class="fu">as.numeric</span>(weighted_lasso_pred))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Setting levels: control = 0, case = 1</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Setting direction: controls &lt; cases</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb43"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb43-1"><a href="#cb43-1" aria-hidden="true" tabindex="-1"></a>unweighted_lasso_roc_obj <span class="ot">&lt;-</span> <span class="fu">roc</span>(y, <span class="fu">as.numeric</span>(unweighted_lasso_pred))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Setting levels: control = 0, case = 1
+Setting direction: controls &lt; cases</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb45"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb45-1"><a href="#cb45-1" aria-hidden="true" tabindex="-1"></a><span class="fu">auc</span>(weighted_lasso_roc_obj)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Area under the curve: 0.8472</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb47"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb47-1"><a href="#cb47-1" aria-hidden="true" tabindex="-1"></a><span class="fu">auc</span>(unweighted_lasso_roc_obj)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Area under the curve: 0.8478</code></pre>
+</div>
+</div>
+</section>
+</section>
+<section id="gam" class="level1">
+<h1>GAM</h1>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb49"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb49-1"><a href="#cb49-1" aria-hidden="true" tabindex="-1"></a>df<span class="sc">$</span>survey_weight <span class="ot">&lt;-</span> <span class="fu">weights</span>(brfss_design)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<section id="weighted-2" class="level2">
+<h2 class="anchored" data-anchor-id="weighted-2">Weighted</h2>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb50"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb50-1"><a href="#cb50-1" aria-hidden="true" tabindex="-1"></a>weighted_gam <span class="ot">&lt;-</span> <span class="fu">gam</span>(</span>
+<span id="cb50-2"><a href="#cb50-2" aria-hidden="true" tabindex="-1"></a>  MEDCOST1 <span class="sc">~</span></span>
+<span id="cb50-3"><a href="#cb50-3" aria-hidden="true" tabindex="-1"></a>    <span class="fu">s</span>(physhlth_days) <span class="sc">+</span></span>
+<span id="cb50-4"><a href="#cb50-4" aria-hidden="true" tabindex="-1"></a>    <span class="fu">s</span>(menthlth_days) <span class="sc">+</span></span>
+<span id="cb50-5"><a href="#cb50-5" aria-hidden="true" tabindex="-1"></a>    region <span class="sc">+</span></span>
+<span id="cb50-6"><a href="#cb50-6" aria-hidden="true" tabindex="-1"></a>    rurality <span class="sc">+</span></span>
+<span id="cb50-7"><a href="#cb50-7" aria-hidden="true" tabindex="-1"></a>    sex <span class="sc">+</span></span>
+<span id="cb50-8"><a href="#cb50-8" aria-hidden="true" tabindex="-1"></a>    agegroup <span class="sc">+</span></span>
+<span id="cb50-9"><a href="#cb50-9" aria-hidden="true" tabindex="-1"></a>    race <span class="sc">+</span></span>
+<span id="cb50-10"><a href="#cb50-10" aria-hidden="true" tabindex="-1"></a>    income <span class="sc">+</span></span>
+<span id="cb50-11"><a href="#cb50-11" aria-hidden="true" tabindex="-1"></a>    maritalstatus <span class="sc">+</span></span>
+<span id="cb50-12"><a href="#cb50-12" aria-hidden="true" tabindex="-1"></a>    education <span class="sc">+</span></span>
+<span id="cb50-13"><a href="#cb50-13" aria-hidden="true" tabindex="-1"></a>    employment <span class="sc">+</span></span>
+<span id="cb50-14"><a href="#cb50-14" aria-hidden="true" tabindex="-1"></a>    healthstatus <span class="sc">+</span></span>
+<span id="cb50-15"><a href="#cb50-15" aria-hidden="true" tabindex="-1"></a>    depression <span class="sc">+</span></span>
+<span id="cb50-16"><a href="#cb50-16" aria-hidden="true" tabindex="-1"></a>    chronic_count <span class="sc">+</span></span>
+<span id="cb50-17"><a href="#cb50-17" aria-hidden="true" tabindex="-1"></a>    any_disability <span class="sc">+</span></span>
+<span id="cb50-18"><a href="#cb50-18" aria-hidden="true" tabindex="-1"></a>    insurance <span class="sc">+</span></span>
+<span id="cb50-19"><a href="#cb50-19" aria-hidden="true" tabindex="-1"></a>    pers_doc <span class="sc">+</span></span>
+<span id="cb50-20"><a href="#cb50-20" aria-hidden="true" tabindex="-1"></a>    last_checkup,</span>
+<span id="cb50-21"><a href="#cb50-21" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> df,</span>
+<span id="cb50-22"><a href="#cb50-22" aria-hidden="true" tabindex="-1"></a>  <span class="at">family =</span> <span class="fu">binomial</span>(),</span>
+<span id="cb50-23"><a href="#cb50-23" aria-hidden="true" tabindex="-1"></a>  <span class="at">weights =</span> survey_weight</span>
+<span id="cb50-24"><a href="#cb50-24" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Warning in eval(family$initialize): non-integer #successes in a binomial glm!
+Warning in eval(family$initialize): non-integer #successes in a binomial glm!
+Warning in eval(family$initialize): non-integer #successes in a binomial glm!
+Warning in eval(family$initialize): non-integer #successes in a binomial glm!
+Warning in eval(family$initialize): non-integer #successes in a binomial glm!
+Warning in eval(family$initialize): non-integer #successes in a binomial glm!</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb52"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb52-1"><a href="#cb52-1" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(weighted_gam)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+Family: binomial 
+Link function: logit 
+
+Formula:
+MEDCOST1 ~ s(physhlth_days) + s(menthlth_days) + region + rurality + 
+    sex + agegroup + race + income + maritalstatus + education + 
+    employment + healthstatus + depression + chronic_count + 
+    any_disability + insurance + pers_doc + last_checkup
+
+Parametric coefficients:
+                                     Estimate Std. Error   z value Pr(&gt;|z|)    
+(Intercept)                        -4.4252490  0.0014339 -3086.158  &lt; 2e-16 ***
+regionNortheast                    -0.1464745  0.0007432  -197.087  &lt; 2e-16 ***
+regionMidwest                      -0.2102990  0.0006663  -315.612  &lt; 2e-16 ***
+regionWest                         -0.1618492  0.0006349  -254.910  &lt; 2e-16 ***
+ruralityRural                      -0.0357669  0.0010160   -35.202  &lt; 2e-16 ***
+sexFemale                           0.2368639  0.0005150   459.952  &lt; 2e-16 ***
+agegroup18-29                       0.4289305  0.0010344   414.655  &lt; 2e-16 ***
+agegroup30-39                       0.5527645  0.0010012   552.090  &lt; 2e-16 ***
+agegroup40-49                       0.5070943  0.0009913   511.537  &lt; 2e-16 ***
+agegroup50-59                       0.1875506  0.0009912   189.221  &lt; 2e-16 ***
+agegroup70+                        -0.7250500  0.0014226  -509.665  &lt; 2e-16 ***
+raceBlack_NH                        0.3084706  0.0007697   400.742  &lt; 2e-16 ***
+raceAsian_NH                        0.0057069  0.0012196     4.679 2.88e-06 ***
+raceAIAN_NH                         0.1290606  0.0020180    63.956  &lt; 2e-16 ***
+raceHispanic                        0.3099825  0.0006592   470.216  &lt; 2e-16 ***
+raceOther_NH                        0.3293949  0.0011116   296.332  &lt; 2e-16 ***
+incomeUpper_mid                     0.8121216  0.0008347   972.943  &lt; 2e-16 ***
+incomeMiddle                        1.0867506  0.0008897  1221.506  &lt; 2e-16 ***
+incomeLow_mid                       1.2257233  0.0011022  1112.059  &lt; 2e-16 ***
+incomeLow                           1.1101114  0.0012364   897.856  &lt; 2e-16 ***
+incomeUnknown                       0.7409922  0.0009879   750.035  &lt; 2e-16 ***
+maritalstatusCurrently_not_married  0.0150710  0.0005529    27.258  &lt; 2e-16 ***
+educationSome_college               0.1780219  0.0006900   257.993  &lt; 2e-16 ***
+educationHS_grad                    0.0445198  0.0007297    61.010  &lt; 2e-16 ***
+educationLess_than_HS               0.0796465  0.0009198    86.591  &lt; 2e-16 ***
+employmentUnemployed                0.1147975  0.0008605   133.404  &lt; 2e-16 ***
+employmentNot_in_labor             -0.2687185  0.0008345  -322.005  &lt; 2e-16 ***
+employmentRetired                  -0.6296229  0.0012759  -493.479  &lt; 2e-16 ***
+employmentUnable_to_work           -0.3762555  0.0010183  -369.479  &lt; 2e-16 ***
+healthstatusVery_good               0.2400555  0.0009380   255.911  &lt; 2e-16 ***
+healthstatusGood                    0.4762628  0.0008938   532.831  &lt; 2e-16 ***
+healthstatusFair                    0.7989683  0.0010101   790.950  &lt; 2e-16 ***
+healthstatusPoor                    0.9076656  0.0013613   666.783  &lt; 2e-16 ***
+depression                          0.2204825  0.0006102   361.316  &lt; 2e-16 ***
+chronic_count                       0.0960478  0.0002610   368.035  &lt; 2e-16 ***
+any_disability                      0.4880704  0.0005849   834.410  &lt; 2e-16 ***
+insurancePrivate                    0.2015174  0.0008693   231.816  &lt; 2e-16 ***
+insuranceMedicare                  -0.2544491  0.0010016  -254.049  &lt; 2e-16 ***
+insuranceMedicaid_CHIP             -0.1875772  0.0009283  -202.075  &lt; 2e-16 ***
+insuranceMilitary_VA               -0.7877300  0.0016808  -468.656  &lt; 2e-16 ***
+insuranceOther_govt                 0.2455465  0.0009365   262.187  &lt; 2e-16 ***
+insuranceUninsured                  1.3936276  0.0008082  1724.397  &lt; 2e-16 ***
+pers_docNo                          0.2623007  0.0006743   388.985  &lt; 2e-16 ***
+last_checkup1_2yrs                  0.4485660  0.0007295   614.925  &lt; 2e-16 ***
+last_checkup2_5yrs                  0.6912130  0.0008651   799.008  &lt; 2e-16 ***
+last_checkupOver_5yrs               0.5748146  0.0009925   579.147  &lt; 2e-16 ***
+last_checkupNever                   0.4798280  0.0020827   230.389  &lt; 2e-16 ***
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+Approximate significance of smooth terms:
+                   edf Ref.df  Chi.sq p-value    
+s(physhlth_days) 8.771  8.978  630784  &lt;2e-16 ***
+s(menthlth_days) 8.971  9.000 1329525  &lt;2e-16 ***
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+R-sq.(adj) =  0.218   Deviance explained = 24.2%
+UBRE =  312.1  Scale est. = 1         n = 377795</code></pre>
+</div>
+</div>
+</section>
+<section id="unweighted-2" class="level2">
+<h2 class="anchored" data-anchor-id="unweighted-2">Unweighted</h2>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb54"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb54-1"><a href="#cb54-1" aria-hidden="true" tabindex="-1"></a>unweighted_gam <span class="ot">&lt;-</span> <span class="fu">gam</span>(</span>
+<span id="cb54-2"><a href="#cb54-2" aria-hidden="true" tabindex="-1"></a>  MEDCOST1 <span class="sc">~</span></span>
+<span id="cb54-3"><a href="#cb54-3" aria-hidden="true" tabindex="-1"></a>    <span class="fu">s</span>(physhlth_days) <span class="sc">+</span></span>
+<span id="cb54-4"><a href="#cb54-4" aria-hidden="true" tabindex="-1"></a>    <span class="fu">s</span>(menthlth_days) <span class="sc">+</span></span>
+<span id="cb54-5"><a href="#cb54-5" aria-hidden="true" tabindex="-1"></a>    region <span class="sc">+</span></span>
+<span id="cb54-6"><a href="#cb54-6" aria-hidden="true" tabindex="-1"></a>    rurality <span class="sc">+</span></span>
+<span id="cb54-7"><a href="#cb54-7" aria-hidden="true" tabindex="-1"></a>    sex <span class="sc">+</span></span>
+<span id="cb54-8"><a href="#cb54-8" aria-hidden="true" tabindex="-1"></a>    agegroup <span class="sc">+</span></span>
+<span id="cb54-9"><a href="#cb54-9" aria-hidden="true" tabindex="-1"></a>    race <span class="sc">+</span></span>
+<span id="cb54-10"><a href="#cb54-10" aria-hidden="true" tabindex="-1"></a>    income <span class="sc">+</span></span>
+<span id="cb54-11"><a href="#cb54-11" aria-hidden="true" tabindex="-1"></a>    maritalstatus <span class="sc">+</span></span>
+<span id="cb54-12"><a href="#cb54-12" aria-hidden="true" tabindex="-1"></a>    education <span class="sc">+</span></span>
+<span id="cb54-13"><a href="#cb54-13" aria-hidden="true" tabindex="-1"></a>    employment <span class="sc">+</span></span>
+<span id="cb54-14"><a href="#cb54-14" aria-hidden="true" tabindex="-1"></a>    healthstatus <span class="sc">+</span></span>
+<span id="cb54-15"><a href="#cb54-15" aria-hidden="true" tabindex="-1"></a>    depression <span class="sc">+</span></span>
+<span id="cb54-16"><a href="#cb54-16" aria-hidden="true" tabindex="-1"></a>    chronic_count <span class="sc">+</span></span>
+<span id="cb54-17"><a href="#cb54-17" aria-hidden="true" tabindex="-1"></a>    any_disability <span class="sc">+</span></span>
+<span id="cb54-18"><a href="#cb54-18" aria-hidden="true" tabindex="-1"></a>    insurance <span class="sc">+</span></span>
+<span id="cb54-19"><a href="#cb54-19" aria-hidden="true" tabindex="-1"></a>    pers_doc <span class="sc">+</span></span>
+<span id="cb54-20"><a href="#cb54-20" aria-hidden="true" tabindex="-1"></a>    last_checkup,</span>
+<span id="cb54-21"><a href="#cb54-21" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> df,</span>
+<span id="cb54-22"><a href="#cb54-22" aria-hidden="true" tabindex="-1"></a>  <span class="at">family =</span> <span class="fu">binomial</span>()</span>
+<span id="cb54-23"><a href="#cb54-23" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb54-24"><a href="#cb54-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb54-25"><a href="#cb54-25" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(unweighted_gam)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+Family: binomial 
+Link function: logit 
+
+Formula:
+MEDCOST1 ~ s(physhlth_days) + s(menthlth_days) + region + rurality + 
+    sex + agegroup + race + income + maritalstatus + education + 
+    employment + healthstatus + depression + chronic_count + 
+    any_disability + insurance + pers_doc + last_checkup
+
+Parametric coefficients:
+                                    Estimate Std. Error  z value Pr(&gt;|z|)    
+(Intercept)                        -4.479294   0.037651 -118.969  &lt; 2e-16 ***
+regionNortheast                    -0.164302   0.019149   -8.580  &lt; 2e-16 ***
+regionMidwest                      -0.180058   0.017471  -10.306  &lt; 2e-16 ***
+regionWest                         -0.100298   0.018264   -5.492 3.98e-08 ***
+ruralityRural                      -0.046249   0.019778   -2.338 0.019365 *  
+sexFemale                           0.210297   0.013793   15.246  &lt; 2e-16 ***
+agegroup18-29                       0.495991   0.026624   18.629  &lt; 2e-16 ***
+agegroup30-39                       0.616120   0.025199   24.450  &lt; 2e-16 ***
+agegroup40-49                       0.515569   0.024455   21.082  &lt; 2e-16 ***
+agegroup50-59                       0.260808   0.023703   11.003  &lt; 2e-16 ***
+agegroup70+                        -0.716612   0.030475  -23.515  &lt; 2e-16 ***
+raceBlack_NH                        0.308330   0.023028   13.389  &lt; 2e-16 ***
+raceAsian_NH                        0.023785   0.043358    0.549 0.583301    
+raceAIAN_NH                         0.190704   0.044954    4.242 2.21e-05 ***
+raceHispanic                        0.373405   0.019518   19.131  &lt; 2e-16 ***
+raceOther_NH                        0.277115   0.030374    9.123  &lt; 2e-16 ***
+incomeUpper_mid                     0.754147   0.022567   33.418  &lt; 2e-16 ***
+incomeMiddle                        1.139766   0.024145   47.205  &lt; 2e-16 ***
+incomeLow_mid                       1.252882   0.029966   41.810  &lt; 2e-16 ***
+incomeLow                           1.129480   0.033780   33.436  &lt; 2e-16 ***
+incomeUnknown                       0.759907   0.027397   27.737  &lt; 2e-16 ***
+maritalstatusCurrently_not_married  0.029592   0.014710    2.012 0.044256 *  
+educationSome_college               0.110348   0.017105    6.451 1.11e-10 ***
+educationHS_grad                    0.004481   0.017890    0.250 0.802225    
+educationLess_than_HS               0.093740   0.026436    3.546 0.000391 ***
+employmentUnemployed                0.115549   0.024432    4.729 2.25e-06 ***
+employmentNot_in_labor             -0.252161   0.025221   -9.998  &lt; 2e-16 ***
+employmentRetired                  -0.667939   0.029183  -22.888  &lt; 2e-16 ***
+employmentUnable_to_work           -0.380368   0.026614  -14.292  &lt; 2e-16 ***
+healthstatusVery_good               0.212824   0.026284    8.097 5.63e-16 ***
+healthstatusGood                    0.504394   0.025280   19.952  &lt; 2e-16 ***
+healthstatusFair                    0.768383   0.028628   26.840  &lt; 2e-16 ***
+healthstatusPoor                    0.937450   0.037009   25.330  &lt; 2e-16 ***
+depression                          0.201984   0.016057   12.579  &lt; 2e-16 ***
+chronic_count                       0.092328   0.006447   14.322  &lt; 2e-16 ***
+any_disability                      0.497305   0.015845   31.385  &lt; 2e-16 ***
+insurancePrivate                    0.220508   0.023964    9.201  &lt; 2e-16 ***
+insuranceMedicare                  -0.283291   0.025266  -11.212  &lt; 2e-16 ***
+insuranceMedicaid_CHIP             -0.284149   0.024809  -11.453  &lt; 2e-16 ***
+insuranceMilitary_VA               -0.853746   0.047801  -17.860  &lt; 2e-16 ***
+insuranceOther_govt                 0.165974   0.026374    6.293 3.11e-10 ***
+insuranceUninsured                  1.420634   0.022668   62.672  &lt; 2e-16 ***
+pers_docNo                          0.280382   0.019228   14.582  &lt; 2e-16 ***
+last_checkup1_2yrs                  0.563576   0.019865   28.370  &lt; 2e-16 ***
+last_checkup2_5yrs                  0.689311   0.024527   28.105  &lt; 2e-16 ***
+last_checkupOver_5yrs               0.627548   0.027239   23.039  &lt; 2e-16 ***
+last_checkupNever                   0.379766   0.061315    6.194 5.88e-10 ***
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+Approximate significance of smooth terms:
+                   edf Ref.df Chi.sq p-value    
+s(physhlth_days) 6.773  7.622  758.7  &lt;2e-16 ***
+s(menthlth_days) 8.311  8.815 1875.8  &lt;2e-16 ***
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+R-sq.(adj) =   0.21   Deviance explained = 25.6%
+UBRE = -0.54815  Scale est. = 1         n = 377795</code></pre>
+</div>
+</div>
+</section>
+<section id="comparison-2" class="level2">
+<h2 class="anchored" data-anchor-id="comparison-2">Comparison</h2>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb56"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb56-1"><a href="#cb56-1" aria-hidden="true" tabindex="-1"></a><span class="co"># coefficients comparison table</span></span>
+<span id="cb56-2"><a href="#cb56-2" aria-hidden="true" tabindex="-1"></a>weighted_gam_coef <span class="ot">&lt;-</span> <span class="fu">summary</span>(weighted_gam)<span class="sc">$</span>p.coeff</span>
+<span id="cb56-3"><a href="#cb56-3" aria-hidden="true" tabindex="-1"></a>unweighted_gam_coef <span class="ot">&lt;-</span> <span class="fu">summary</span>(unweighted_gam)<span class="sc">$</span>p.coeff</span>
+<span id="cb56-4"><a href="#cb56-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb56-5"><a href="#cb56-5" aria-hidden="true" tabindex="-1"></a>gam_comparison <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
+<span id="cb56-6"><a href="#cb56-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">Variable =</span> <span class="fu">names</span>(weighted_gam_coef),</span>
+<span id="cb56-7"><a href="#cb56-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">Weighted_Est =</span> weighted_gam_coef,</span>
+<span id="cb56-8"><a href="#cb56-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">Unweighted_Est =</span> unweighted_gam_coef,</span>
+<span id="cb56-9"><a href="#cb56-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">Weighted_OR =</span> <span class="fu">exp</span>(weighted_gam_coef),</span>
+<span id="cb56-10"><a href="#cb56-10" aria-hidden="true" tabindex="-1"></a>  <span class="at">Unweighted_OR =</span> <span class="fu">exp</span>(unweighted_gam_coef)</span>
+<span id="cb56-11"><a href="#cb56-11" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb56-12"><a href="#cb56-12" aria-hidden="true" tabindex="-1"></a>gam_comparison</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>                                                             Variable
+(Intercept)                                               (Intercept)
+regionNortheast                                       regionNortheast
+regionMidwest                                           regionMidwest
+regionWest                                                 regionWest
+ruralityRural                                           ruralityRural
+sexFemale                                                   sexFemale
+agegroup18-29                                           agegroup18-29
+agegroup30-39                                           agegroup30-39
+agegroup40-49                                           agegroup40-49
+agegroup50-59                                           agegroup50-59
+agegroup70+                                               agegroup70+
+raceBlack_NH                                             raceBlack_NH
+raceAsian_NH                                             raceAsian_NH
+raceAIAN_NH                                               raceAIAN_NH
+raceHispanic                                             raceHispanic
+raceOther_NH                                             raceOther_NH
+incomeUpper_mid                                       incomeUpper_mid
+incomeMiddle                                             incomeMiddle
+incomeLow_mid                                           incomeLow_mid
+incomeLow                                                   incomeLow
+incomeUnknown                                           incomeUnknown
+maritalstatusCurrently_not_married maritalstatusCurrently_not_married
+educationSome_college                           educationSome_college
+educationHS_grad                                     educationHS_grad
+educationLess_than_HS                           educationLess_than_HS
+employmentUnemployed                             employmentUnemployed
+employmentNot_in_labor                         employmentNot_in_labor
+employmentRetired                                   employmentRetired
+employmentUnable_to_work                     employmentUnable_to_work
+healthstatusVery_good                           healthstatusVery_good
+healthstatusGood                                     healthstatusGood
+healthstatusFair                                     healthstatusFair
+healthstatusPoor                                     healthstatusPoor
+depression                                                 depression
+chronic_count                                           chronic_count
+any_disability                                         any_disability
+insurancePrivate                                     insurancePrivate
+insuranceMedicare                                   insuranceMedicare
+insuranceMedicaid_CHIP                         insuranceMedicaid_CHIP
+insuranceMilitary_VA                             insuranceMilitary_VA
+insuranceOther_govt                               insuranceOther_govt
+insuranceUninsured                                 insuranceUninsured
+pers_docNo                                                 pers_docNo
+last_checkup1_2yrs                                 last_checkup1_2yrs
+last_checkup2_5yrs                                 last_checkup2_5yrs
+last_checkupOver_5yrs                           last_checkupOver_5yrs
+last_checkupNever                                   last_checkupNever
+                                   Weighted_Est Unweighted_Est Weighted_OR
+(Intercept)                        -4.425248951   -4.479294206  0.01197123
+regionNortheast                    -0.146474470   -0.164302099  0.86374778
+regionMidwest                      -0.210299040   -0.180058334  0.81034189
+regionWest                         -0.161849247   -0.100297794  0.85056942
+ruralityRural                      -0.035766916   -0.046249384  0.96486516
+sexFemale                           0.236863850    0.210297303  1.26726857
+agegroup18-29                       0.428930522    0.495991265  1.53561434
+agegroup30-39                       0.552764531    0.616119509  1.73805128
+agegroup40-49                       0.507094331    0.515568931  1.66045943
+agegroup50-59                       0.187550601    0.260807546  1.20629129
+agegroup70+                        -0.725049951   -0.716612416  0.48430038
+raceBlack_NH                        0.308470640    0.308329858  1.36134154
+raceAsian_NH                        0.005706876    0.023784716  1.00572319
+raceAIAN_NH                         0.129060582    0.190703947  1.13775905
+raceHispanic                        0.309982513    0.373404602  1.36340127
+raceOther_NH                        0.329394919    0.277114985  1.39012673
+incomeUpper_mid                     0.812121604    0.754146611  2.25268222
+incomeMiddle                        1.086750550    1.139766294  2.96462500
+incomeLow_mid                       1.225723313    1.252881740  3.40662925
+incomeLow                           1.110111386    1.129480276  3.03469640
+incomeUnknown                       0.740992172    0.759906910  2.09801607
+maritalstatusCurrently_not_married  0.015071038    0.029592298  1.01518518
+educationSome_college               0.178021877    0.110347546  1.19485146
+educationHS_grad                    0.044519752    0.004481003  1.04552563
+educationLess_than_HS               0.079646455    0.093740210  1.08290414
+employmentUnemployed                0.114797520    0.115548691  1.12164630
+employmentNot_in_labor             -0.268718494   -0.252160935  0.76435840
+employmentRetired                  -0.629622902   -0.667938660  0.53279268
+employmentUnable_to_work           -0.376255491   -0.380368350  0.68642693
+healthstatusVery_good               0.240055544    0.212824110  1.27131976
+healthstatusGood                    0.476262802    0.504393555  1.61004608
+healthstatusFair                    0.798968329    0.768382580  2.22324609
+healthstatusPoor                    0.907665583    0.937450198  2.47852985
+depression                          0.220482482    0.201983536  1.24667809
+chronic_count                       0.096047773    0.092327649  1.10081165
+any_disability                      0.488070385    0.497305032  1.62916952
+insurancePrivate                    0.201517367    0.220508189  1.22325748
+insuranceMedicare                  -0.254449135   -0.283290647  0.77534349
+insuranceMedicaid_CHIP             -0.187577218   -0.284149230  0.82896510
+insuranceMilitary_VA               -0.787730034   -0.853745843  0.45487618
+insuranceOther_govt                 0.245546499    0.165973947  1.27831972
+insuranceUninsured                  1.393627584    1.420633597  4.02944071
+pers_docNo                          0.262300660    0.280382155  1.29991732
+last_checkup1_2yrs                  0.448565984    0.563575597  1.56606481
+last_checkup2_5yrs                  0.691213010    0.689310741  1.99613540
+last_checkupOver_5yrs               0.574814598    0.627547870  1.77680107
+last_checkupNever                   0.479828036    0.379765601  1.61579652
+                                   Unweighted_OR
+(Intercept)                           0.01134142
+regionNortheast                       0.84848566
+regionMidwest                         0.83522149
+regionWest                            0.90456800
+ruralityRural                         0.95480382
+sexFemale                             1.23404489
+agegroup18-29                         1.64212521
+agegroup30-39                         1.85172847
+agegroup40-49                         1.67459096
+agegroup50-59                         1.29797784
+agegroup70+                           0.48840397
+raceBlack_NH                          1.36114990
+raceAsian_NH                          1.02406983
+raceAIAN_NH                           1.21010114
+raceHispanic                          1.45267198
+raceOther_NH                          1.31931806
+incomeUpper_mid                       2.12579662
+incomeMiddle                          3.12603771
+incomeLow_mid                         3.50041573
+incomeLow                             3.09404803
+incomeUnknown                         2.13807718
+maritalstatusCurrently_not_married    1.03003450
+educationSome_college                 1.11666610
+educationHS_grad                      1.00449106
+educationLess_than_HS                 1.09827439
+employmentUnemployed                  1.12248917
+employmentNot_in_labor                0.77711966
+employmentRetired                     0.51276447
+employmentUnable_to_work              0.68360956
+healthstatusVery_good                 1.23716703
+healthstatusGood                      1.65598096
+healthstatusFair                      2.15627583
+healthstatusPoor                      2.55346229
+depression                            1.22382786
+chronic_count                         1.09672410
+any_disability                        1.64428400
+insurancePrivate                      1.24671013
+insuranceMedicare                     0.75330081
+insuranceMedicaid_CHIP                0.75265432
+insuranceMilitary_VA                  0.42581690
+insuranceOther_govt                   1.18054234
+insuranceUninsured                    4.13974254
+pers_docNo                            1.32363555
+last_checkup1_2yrs                    1.75694340
+last_checkup2_5yrs                    1.99234182
+last_checkupOver_5yrs                 1.87301207
+last_checkupNever                     1.46194187</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb58"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb58-1"><a href="#cb58-1" aria-hidden="true" tabindex="-1"></a><span class="co"># smooth term plot </span></span>
+<span id="cb58-2"><a href="#cb58-2" aria-hidden="true" tabindex="-1"></a><span class="fu">par</span>(<span class="at">mfrow =</span> <span class="fu">c</span>(<span class="dv">2</span>, <span class="dv">2</span>))</span>
+<span id="cb58-3"><a href="#cb58-3" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(weighted_gam, <span class="at">select =</span> <span class="dv">1</span>, <span class="at">main =</span> <span class="st">"physhlth (weighted)"</span>)</span>
+<span id="cb58-4"><a href="#cb58-4" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(weighted_gam, <span class="at">select =</span> <span class="dv">2</span>, <span class="at">main =</span> <span class="st">"menthlth (weighted)"</span>)</span>
+<span id="cb58-5"><a href="#cb58-5" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(unweighted_gam, <span class="at">select =</span> <span class="dv">1</span>, <span class="at">main =</span> <span class="st">"physhlth (unweighted)"</span>)</span>
+<span id="cb58-6"><a href="#cb58-6" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(unweighted_gam, <span class="at">select =</span> <span class="dv">2</span>, <span class="at">main =</span> <span class="st">"menthlth (unweighted)"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="regression_models_files/figure-html/unnamed-chunk-13-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+<div class="sourceCode cell-code" id="cb59"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb59-1"><a href="#cb59-1" aria-hidden="true" tabindex="-1"></a><span class="co"># AUC comparison</span></span>
+<span id="cb59-2"><a href="#cb59-2" aria-hidden="true" tabindex="-1"></a>weighted_gam_pred <span class="ot">&lt;-</span> <span class="fu">predict</span>(weighted_gam, <span class="at">type =</span> <span class="st">"response"</span>)</span>
+<span id="cb59-3"><a href="#cb59-3" aria-hidden="true" tabindex="-1"></a>unweighted_gam_pred <span class="ot">&lt;-</span> <span class="fu">predict</span>(unweighted_gam, <span class="at">type =</span> <span class="st">"response"</span>)</span>
+<span id="cb59-4"><a href="#cb59-4" aria-hidden="true" tabindex="-1"></a>weighted_gam_roc_obj <span class="ot">&lt;-</span> <span class="fu">roc</span>(y, <span class="fu">as.numeric</span>(weighted_gam_pred))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Setting levels: control = 0, case = 1</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Setting direction: controls &lt; cases</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb62"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb62-1"><a href="#cb62-1" aria-hidden="true" tabindex="-1"></a>unweighted_gam_roc_obj <span class="ot">&lt;-</span> <span class="fu">roc</span>(y, <span class="fu">as.numeric</span>(unweighted_gam_pred))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Setting levels: control = 0, case = 1
+Setting direction: controls &lt; cases</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb64"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb64-1"><a href="#cb64-1" aria-hidden="true" tabindex="-1"></a><span class="fu">auc</span>(weighted_gam_roc_obj)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Area under the curve: 0.8501</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb66"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb66-1"><a href="#cb66-1" aria-hidden="true" tabindex="-1"></a><span class="fu">auc</span>(unweighted_gam_roc_obj)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Area under the curve: 0.851</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb68"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb68-1"><a href="#cb68-1" aria-hidden="true" tabindex="-1"></a><span class="co"># p-values for smooth terms</span></span>
+<span id="cb68-2"><a href="#cb68-2" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(weighted_gam)<span class="sc">$</span>s.pv</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 0 0</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb70"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb70-1"><a href="#cb70-1" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(unweighted_gam)<span class="sc">$</span>s.pv</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 0 0</code></pre>
+</div>
+</div>
+</section>
+</section>
+<section id="final-model-comparison" class="level1">
+<h1>Final model comparison</h1>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb72"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb72-1"><a href="#cb72-1" aria-hidden="true" tabindex="-1"></a>get_auc <span class="ot">&lt;-</span> <span class="cf">function</span>(y, pred_prob) {</span>
+<span id="cb72-2"><a href="#cb72-2" aria-hidden="true" tabindex="-1"></a>  roc_obj <span class="ot">&lt;-</span> <span class="fu">roc</span>(y, <span class="fu">as.numeric</span>(pred_prob))</span>
+<span id="cb72-3"><a href="#cb72-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">auc</span>(roc_obj)</span>
+<span id="cb72-4"><a href="#cb72-4" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb72-5"><a href="#cb72-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb72-6"><a href="#cb72-6" aria-hidden="true" tabindex="-1"></a>pred_w_glm <span class="ot">&lt;-</span> <span class="fu">predict</span>(weighted_glm, <span class="at">type =</span> <span class="st">"response"</span>)</span>
+<span id="cb72-7"><a href="#cb72-7" aria-hidden="true" tabindex="-1"></a>auc_w_glm <span class="ot">&lt;-</span> <span class="fu">get_auc</span>(y, pred_w_glm)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Setting levels: control = 0, case = 1</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Setting direction: controls &lt; cases</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb75"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb75-1"><a href="#cb75-1" aria-hidden="true" tabindex="-1"></a>pred_u_glm <span class="ot">&lt;-</span> <span class="fu">predict</span>(unweighted_glm, <span class="at">type =</span> <span class="st">"response"</span>)</span>
+<span id="cb75-2"><a href="#cb75-2" aria-hidden="true" tabindex="-1"></a>auc_u_glm <span class="ot">&lt;-</span> <span class="fu">get_auc</span>(y, pred_u_glm)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Setting levels: control = 0, case = 1
+Setting direction: controls &lt; cases</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb77"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb77-1"><a href="#cb77-1" aria-hidden="true" tabindex="-1"></a>pred_w_lasso <span class="ot">&lt;-</span> <span class="fu">predict</span>(weighted_lasso, <span class="at">newx =</span> x, <span class="at">s =</span> <span class="st">"lambda.1se"</span>, <span class="at">type =</span> <span class="st">"response"</span>)</span>
+<span id="cb77-2"><a href="#cb77-2" aria-hidden="true" tabindex="-1"></a>auc_w_lasso <span class="ot">&lt;-</span> <span class="fu">get_auc</span>(y, pred_w_lasso)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Setting levels: control = 0, case = 1
+Setting direction: controls &lt; cases</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb79"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb79-1"><a href="#cb79-1" aria-hidden="true" tabindex="-1"></a>pred_u_lasso <span class="ot">&lt;-</span> <span class="fu">predict</span>(unweighted_lasso, <span class="at">newx =</span> x, <span class="at">s =</span> <span class="st">"lambda.1se"</span>, <span class="at">type =</span> <span class="st">"response"</span>)</span>
+<span id="cb79-2"><a href="#cb79-2" aria-hidden="true" tabindex="-1"></a>auc_u_lasso <span class="ot">&lt;-</span> <span class="fu">get_auc</span>(y, pred_u_lasso)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Setting levels: control = 0, case = 1
+Setting direction: controls &lt; cases</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb81"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb81-1"><a href="#cb81-1" aria-hidden="true" tabindex="-1"></a>pred_w_gam <span class="ot">&lt;-</span> <span class="fu">predict</span>(weighted_gam, <span class="at">type =</span> <span class="st">"response"</span>)</span>
+<span id="cb81-2"><a href="#cb81-2" aria-hidden="true" tabindex="-1"></a>auc_w_gam <span class="ot">&lt;-</span> <span class="fu">get_auc</span>(y, pred_w_gam)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Setting levels: control = 0, case = 1
+Setting direction: controls &lt; cases</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb83"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb83-1"><a href="#cb83-1" aria-hidden="true" tabindex="-1"></a>pred_u_gam <span class="ot">&lt;-</span> <span class="fu">predict</span>(unweighted_gam, <span class="at">type =</span> <span class="st">"response"</span>)</span>
+<span id="cb83-2"><a href="#cb83-2" aria-hidden="true" tabindex="-1"></a>auc_u_gam <span class="ot">&lt;-</span> <span class="fu">get_auc</span>(y, pred_u_gam)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Setting levels: control = 0, case = 1
+Setting direction: controls &lt; cases</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb85"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb85-1"><a href="#cb85-1" aria-hidden="true" tabindex="-1"></a>model_comparison <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
+<span id="cb85-2"><a href="#cb85-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">Model =</span> <span class="fu">c</span>(</span>
+<span id="cb85-3"><a href="#cb85-3" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Logistic (Weighted)"</span>,</span>
+<span id="cb85-4"><a href="#cb85-4" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Logistic (Unweighted)"</span>,</span>
+<span id="cb85-5"><a href="#cb85-5" aria-hidden="true" tabindex="-1"></a>    <span class="st">"LASSO (Weighted)"</span>,</span>
+<span id="cb85-6"><a href="#cb85-6" aria-hidden="true" tabindex="-1"></a>    <span class="st">"LASSO (Unweighted)"</span>,</span>
+<span id="cb85-7"><a href="#cb85-7" aria-hidden="true" tabindex="-1"></a>    <span class="st">"GAM (Weighted)"</span>,</span>
+<span id="cb85-8"><a href="#cb85-8" aria-hidden="true" tabindex="-1"></a>    <span class="st">"GAM (Unweighted)"</span></span>
+<span id="cb85-9"><a href="#cb85-9" aria-hidden="true" tabindex="-1"></a>  ),</span>
+<span id="cb85-10"><a href="#cb85-10" aria-hidden="true" tabindex="-1"></a>  <span class="at">AUC =</span> <span class="fu">c</span>(</span>
+<span id="cb85-11"><a href="#cb85-11" aria-hidden="true" tabindex="-1"></a>    auc_w_glm,</span>
+<span id="cb85-12"><a href="#cb85-12" aria-hidden="true" tabindex="-1"></a>    auc_u_glm,</span>
+<span id="cb85-13"><a href="#cb85-13" aria-hidden="true" tabindex="-1"></a>    auc_w_lasso,</span>
+<span id="cb85-14"><a href="#cb85-14" aria-hidden="true" tabindex="-1"></a>    auc_u_lasso,</span>
+<span id="cb85-15"><a href="#cb85-15" aria-hidden="true" tabindex="-1"></a>    auc_w_gam,</span>
+<span id="cb85-16"><a href="#cb85-16" aria-hidden="true" tabindex="-1"></a>    auc_u_gam</span>
+<span id="cb85-17"><a href="#cb85-17" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb85-18"><a href="#cb85-18" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb85-19"><a href="#cb85-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb85-20"><a href="#cb85-20" aria-hidden="true" tabindex="-1"></a>model_comparison</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>                  Model       AUC
+1   Logistic (Weighted) 0.8479442
+2 Logistic (Unweighted) 0.8486653
+3      LASSO (Weighted) 0.8471992
+4    LASSO (Unweighted) 0.8477570
+5        GAM (Weighted) 0.8501023
+6      GAM (Unweighted) 0.8509874</code></pre>
+</div>
+</div>
+</section>
+
+</main>
+<!-- /main column -->
+<script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  const isCodeAnnotation = (el) => {
+    for (const clz of el.classList) {
+      if (clz.startsWith('code-annotation-')) {                     
+        return true;
+      }
+    }
+    return false;
+  }
+  const onCopySuccess = function(e) {
+    // button target
+    const button = e.trigger;
+    // don't keep focus
+    button.blur();
+    // flash "checked"
+    button.classList.add('code-copy-button-checked');
+    var currentTitle = button.getAttribute("title");
+    button.setAttribute("title", "Copied!");
+    let tooltip;
+    if (window.bootstrap) {
+      button.setAttribute("data-bs-toggle", "tooltip");
+      button.setAttribute("data-bs-placement", "left");
+      button.setAttribute("data-bs-title", "Copied!");
+      tooltip = new bootstrap.Tooltip(button, 
+        { trigger: "manual", 
+          customClass: "code-copy-button-tooltip",
+          offset: [0, -8]});
+      tooltip.show();    
+    }
+    setTimeout(function() {
+      if (tooltip) {
+        tooltip.hide();
+        button.removeAttribute("data-bs-title");
+        button.removeAttribute("data-bs-toggle");
+        button.removeAttribute("data-bs-placement");
+      }
+      button.setAttribute("title", currentTitle);
+      button.classList.remove('code-copy-button-checked');
+    }, 1000);
+    // clear code selection
+    e.clearSelection();
+  }
+  const getTextToCopy = function(trigger) {
+      const codeEl = trigger.previousElementSibling.cloneNode(true);
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+  }
+  const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+    text: getTextToCopy
+  });
+  clipboard.on('success', onCopySuccess);
+  if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+    const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+      text: getTextToCopy,
+      container: window.document.getElementById('quarto-embedded-source-code-modal')
+    });
+    clipboardModal.on('success', onCopySuccess);
+  }
+    var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+    var mailtoRegex = new RegExp(/^mailto:/);
+      var filterRegex = new RegExp('/' + window.location.host + '/');
+    var isInternal = (href) => {
+        return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+    }
+    // Inspect non-navigation links and adorn them if external
+ 	var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+    for (var i=0; i<links.length; i++) {
+      const link = links[i];
+      if (!isInternal(link.href)) {
+        // undo the damage that might have been done by quarto-nav.js in the case of
+        // links that we want to consider external
+        if (link.dataset.originalHref !== undefined) {
+          link.href = link.dataset.originalHref;
+        }
+      }
+    }
+  function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+    const config = {
+      allowHTML: true,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start',
+    };
+    if (contentFn) {
+      config.content = contentFn;
+    }
+    if (onTriggerFn) {
+      config.onTrigger = onTriggerFn;
+    }
+    if (onUntriggerFn) {
+      config.onUntrigger = onUntriggerFn;
+    }
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      if (note) {
+        return note.innerHTML;
+      } else {
+        return "";
+      }
+    });
+  }
+  const xrefs = window.document.querySelectorAll('a.quarto-xref');
+  const processXRef = (id, note) => {
+    // Strip column container classes
+    const stripColumnClz = (el) => {
+      el.classList.remove("page-full", "page-columns");
+      if (el.children) {
+        for (const child of el.children) {
+          stripColumnClz(child);
+        }
+      }
+    }
+    stripColumnClz(note)
+    if (id === null || id.startsWith('sec-')) {
+      // Special case sections, only their first couple elements
+      const container = document.createElement("div");
+      if (note.children && note.children.length > 2) {
+        container.appendChild(note.children[0].cloneNode(true));
+        for (let i = 1; i < note.children.length; i++) {
+          const child = note.children[i];
+          if (child.tagName === "P" && child.innerText === "") {
+            continue;
+          } else {
+            container.appendChild(child.cloneNode(true));
+            break;
+          }
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(container);
+        }
+        return container.innerHTML
+      } else {
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        return note.innerHTML;
+      }
+    } else {
+      // Remove any anchor links if they are present
+      const anchorLink = note.querySelector('a.anchorjs-link');
+      if (anchorLink) {
+        anchorLink.remove();
+      }
+      if (window.Quarto?.typesetMath) {
+        window.Quarto.typesetMath(note);
+      }
+      if (note.classList.contains("callout")) {
+        return note.outerHTML;
+      } else {
+        return note.innerHTML;
+      }
+    }
+  }
+  for (var i=0; i<xrefs.length; i++) {
+    const xref = xrefs[i];
+    tippyHover(xref, undefined, function(instance) {
+      instance.disable();
+      let url = xref.getAttribute('href');
+      let hash = undefined; 
+      if (url.startsWith('#')) {
+        hash = url;
+      } else {
+        try { hash = new URL(url).hash; } catch {}
+      }
+      if (hash) {
+        const id = hash.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note !== null) {
+          try {
+            const html = processXRef(id, note.cloneNode(true));
+            instance.setContent(html);
+          } finally {
+            instance.enable();
+            instance.show();
+          }
+        } else {
+          // See if we can fetch this
+          fetch(url.split('#')[0])
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.getElementById(id);
+            if (note !== null) {
+              const html = processXRef(id, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      } else {
+        // See if we can fetch a full url (with no hash to target)
+        // This is a special case and we should probably do some content thinning / targeting
+        fetch(url)
+        .then(res => res.text())
+        .then(html => {
+          const parser = new DOMParser();
+          const htmlDoc = parser.parseFromString(html, "text/html");
+          const note = htmlDoc.querySelector('main.content');
+          if (note !== null) {
+            // This should only happen for chapter cross references
+            // (since there is no id in the URL)
+            // remove the first header
+            if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+              note.children[0].remove();
+            }
+            const html = processXRef(null, note);
+            instance.setContent(html);
+          } 
+        }).finally(() => {
+          instance.enable();
+          instance.show();
+        });
+      }
+    }, function(instance) {
+    });
+  }
+      let selectedAnnoteEl;
+      const selectorForAnnotation = ( cell, annotation) => {
+        let cellAttr = 'data-code-cell="' + cell + '"';
+        let lineAttr = 'data-code-annotation="' +  annotation + '"';
+        const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+        return selector;
+      }
+      const selectCodeLines = (annoteEl) => {
+        const doc = window.document;
+        const targetCell = annoteEl.getAttribute("data-target-cell");
+        const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+        const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+        const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+        const lineIds = lines.map((line) => {
+          return targetCell + "-" + line;
+        })
+        let top = null;
+        let height = null;
+        let parent = null;
+        if (lineIds.length > 0) {
+            //compute the position of the single el (top and bottom and make a div)
+            const el = window.document.getElementById(lineIds[0]);
+            top = el.offsetTop;
+            height = el.offsetHeight;
+            parent = el.parentElement.parentElement;
+          if (lineIds.length > 1) {
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+            height = bottom - top;
+          }
+          if (top !== null && height !== null && parent !== null) {
+            // cook up a div (if necessary) and position it 
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
+            }
+            div.style.top = top - 2 + "px";
+            div.style.height = height + 4 + "px";
+            div.style.left = 0;
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
+            }
+            gutterDiv.style.top = top - 2 + "px";
+            gutterDiv.style.height = height + 4 + "px";
+          }
+          selectedAnnoteEl = annoteEl;
+        }
+      };
+      const unselectCodeLines = () => {
+        const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+        elementsIds.forEach((elId) => {
+          const div = window.document.getElementById(elId);
+          if (div) {
+            div.remove();
+          }
+        });
+        selectedAnnoteEl = undefined;
+      };
+        // Handle positioning of the toggle
+    window.addEventListener(
+      "resize",
+      throttle(() => {
+        elRect = undefined;
+        if (selectedAnnoteEl) {
+          selectCodeLines(selectedAnnoteEl);
+        }
+      }, 10)
+    );
+    function throttle(fn, ms) {
+    let throttle = false;
+    let timer;
+      return (...args) => {
+        if(!throttle) { // first call gets through
+            fn.apply(this, args);
+            throttle = true;
+        } else { // all the others get throttled
+            if(timer) clearTimeout(timer); // cancel #2
+            timer = setTimeout(() => {
+              fn.apply(this, args);
+              timer = throttle = false;
+            }, ms);
+        }
+      };
+    }
+      // Attach click handler to the DT
+      const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+      for (const annoteDlNode of annoteDls) {
+        annoteDlNode.addEventListener('click', (event) => {
+          const clickedEl = event.target;
+          if (clickedEl !== selectedAnnoteEl) {
+            unselectCodeLines();
+            const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+            if (activeEl) {
+              activeEl.classList.remove('code-annotation-active');
+            }
+            selectCodeLines(clickedEl);
+            clickedEl.classList.add('code-annotation-active');
+          } else {
+            // Unselect the line
+            unselectCodeLines();
+            clickedEl.classList.remove('code-annotation-active');
+          }
+        });
+      }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+});
+</script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>
