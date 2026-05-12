@@ -6,7 +6,7 @@ editor: visual
 
 # Setup
 ```{r}
-#install.packages(c("survey", "mgcv", "glmnet", "dplyr"))
+# install.packages(c("survey", "mgcv", "glmnet", "dplyr", "pROC"))
 
 library(survey)
 library(mgcv)
@@ -15,45 +15,120 @@ library(dplyr)
 library(pROC)
 ```
 
-# Survey design
+# Data split and survey design
 ```{r}
 df <- readRDS("../data/brfss2024_clean.rds")
 
-# create survey design object
+predictor_formula <- MEDCOST1 ~
+  region +
+  rurality +
+  sex +
+  agegroup +
+  race +
+  income +
+  maritalstatus +
+  education +
+  employment +
+  healthstatus +
+  physhlth_days +
+  menthlth_days +
+  depression +
+  chronic_count +
+  any_disability +
+  insurance +
+  pers_doc +
+  last_checkup
+
+set.seed(263)
+train_index <- unlist(lapply(
+  split(seq_len(nrow(df)), df$MEDCOST1),
+  function(idx) sample(idx, floor(0.8 * length(idx)))
+))
+
+train_df <- df[train_index, ]
+test_df <- df[-train_index, ]
+
+y_train <- train_df$MEDCOST1
+y_test <- test_df$MEDCOST1
+
+split_summary <- data.frame(
+  Set = c("Training", "Testing"),
+  N = c(nrow(train_df), nrow(test_df)),
+  Event_Rate = round(c(mean(y_train), mean(y_test)), 3)
+)
+split_summary
+
+# create survey design object for weighted training models
 options(survey.lonely.psu = "adjust")
 
-brfss_design <- svydesign(
+brfss_train_design <- svydesign(
   id = ~PSU,
   strata = ~STSTR,
   weights = ~WEIGHT,
-  data = df,
+  data = train_df,
   nest = TRUE
 )
 ```
 
+# Evaluation helpers
+```{r}
+safe_divide <- function(num, den) {
+  ifelse(den == 0, NA_real_, num / den)
+}
+
+get_auc <- function(y, pred_prob) {
+  roc_obj <- roc(y, as.numeric(pred_prob), quiet = TRUE)
+  as.numeric(auc(roc_obj))
+}
+
+get_youden_threshold <- function(y, pred_prob) {
+  roc_obj <- roc(y, as.numeric(pred_prob), quiet = TRUE)
+  best <- coords(
+    roc_obj,
+    x = "best",
+    best.method = "youden",
+    ret = "threshold"
+  )
+  as.numeric(best[1])
+}
+
+classification_metrics <- function(y, pred_prob, threshold) {
+  pred_class <- ifelse(as.numeric(pred_prob) >= threshold, 1, 0)
+
+  tp <- sum(pred_class == 1 & y == 1)
+  tn <- sum(pred_class == 0 & y == 0)
+  fp <- sum(pred_class == 1 & y == 0)
+  fn <- sum(pred_class == 0 & y == 1)
+
+  data.frame(
+    Accuracy = mean(pred_class == y),
+    Sensitivity = safe_divide(tp, tp + fn),
+    Specificity = safe_divide(tn, tn + fp)
+  )
+}
+
+evaluate_model <- function(model_name, train_y, train_prob, test_y, test_prob) {
+  threshold <- get_youden_threshold(train_y, train_prob)
+  metrics <- classification_metrics(test_y, test_prob, threshold)
+
+  data.frame(
+    Model = model_name,
+    Test_AUC = get_auc(test_y, test_prob),
+    Threshold = threshold,
+    Accuracy = metrics$Accuracy,
+    Sensitivity = metrics$Sensitivity,
+    Specificity = metrics$Specificity
+  )
+}
+```
+
 # Logistic Regression
-## weighted
+
+## Weighted
 ```{r}
 weighted_glm <- svyglm(
-  MEDCOST1 ~ region +
-    rurality +
-    sex +
-    agegroup +
-    race +
-    income +
-    maritalstatus +
-    education +
-    employment +
-    healthstatus +
-    physhlth_days +
-    menthlth_days +
-    depression +
-    chronic_count +
-    any_disability +
-    insurance +
-    pers_doc +
-    last_checkup,
-  design = brfss_design,
+  predictor_formula,
+  design = brfss_train_design,
   family = quasibinomial()
 )
 
@@ -63,8 +138,8 @@ summary(weighted_glm)
 ## Unweighted
 ```{r}
 unweighted_glm <- glm(
-  MEDCOST1 ~  . - PSU - STSTR - WEIGHT,
-  data = df,
+  predictor_formula,
+  data = train_df,
   family = binomial()
 )
 
@@ -83,6 +158,7 @@ weighted_glm_df <- data.frame(
   Weighted_SE = weighted_glm_summary[, 2],
   Weighted_p = weighted_glm_summary[, 4]
 )
+
 unweighted_glm_df <- data.frame(
   Variable = rownames(unweighted_glm_summary),
   Unweighted_Estimate = unweighted_glm_summary[, 1],
@@ -95,6 +171,7 @@ weighted_glm_df$Weighted_OR <- exp(weighted_glm_df$Weighted_Estimate)
 weighted_ci <- exp(confint(weighted_glm))
 weighted_glm_df$Weighted_OR_lower <- weighted_ci[, 1]
 weighted_glm_df$Weighted_OR_upper <- weighted_ci[, 2]
+
 unweighted_glm_df$Unweighted_OR <- exp(unweighted_glm_df$Unweighted_Estimate)
 unweighted_ci <- exp(confint.default(unweighted_glm))
 unweighted_glm_df$Unweighted_OR_lower <- unweighted_ci[, 1]
@@ -107,71 +184,103 @@ comparison_glm_table <- merge(
 )
 
 comparison_glm_table <- comparison_glm_table %>%
-  mutate(across(where(is.numeric), round, 3))
+  mutate(across(where(is.numeric), ~ round(.x, 3)))
 
 comparison_glm_table
+
+pred_train_w_glm <- as.numeric(predict(weighted_glm, type = "response"))
+pred_test_w_glm <- as.numeric(predict(
+  weighted_glm,
+  newdata = test_df,
+  type = "response"
+))
+
+pred_train_u_glm <- as.numeric(predict(unweighted_glm, type = "response"))
+pred_test_u_glm <- as.numeric(predict(
+  unweighted_glm,
+  newdata = test_df,
+  type = "response"
+))
 ```
 
-# Logistic regression (with Lasso)
+# Logistic Regression with Lasso
 ```{r}
-x <- model.matrix(
-  MEDCOST1 ~ . - PSU - STSTR - WEIGHT,
-  data = df
-)[, -1]
-y <- df$MEDCOST1
+x_train <- model.matrix(predictor_formula, data = train_df)[, -1]
+x_test <- model.matrix(predictor_formula, data = test_df)[, -1]
 ```
 
 ## Weighted
 ```{r}
+set.seed(263)
 weighted_lasso <- cv.glmnet(
-  x,
-  y,
+  x_train,
+  y_train,
   family = "binomial",
   alpha = 1,
-  nfolds = 10,
-  weights = df$WEIGHT
+  nfolds = 5,
+  type.measure = "auc",
+  weights = train_df$WEIGHT
 )
 ```
 
 ## Unweighted
 ```{r}
+set.seed(263)
 unweighted_lasso <- cv.glmnet(
-  x,
-  y,
+  x_train,
+  y_train,
   family = "binomial",
   alpha = 1,
-  nfolds = 10
+  nfolds = 5,
+  type.measure = "auc"
 )
 ```
 
 ## Comparison
 ```{r}
 # Lasso selected variables
-lasso_out <- cbind(coef(weighted_lasso, s = "lambda.1se"),
-                   coef(unweighted_lasso, s = "lambda.1se"))
+lasso_out <- cbind(
+  coef(weighted_lasso, s = "lambda.1se"),
+  coef(unweighted_lasso, s = "lambda.1se")
+)
 colnames(lasso_out) <- c("Weighted", "Unweighted")
 lasso_out
 
 # Lasso plot
-par(mfrow=c(2,2))
+par(mfrow = c(2, 2))
 plot(weighted_lasso$glmnet.fit, xvar = "lambda")
 plot(weighted_lasso)
 plot(unweighted_lasso$glmnet.fit, xvar = "lambda")
 plot(unweighted_lasso)
 
-# AUC comparison
-weighted_lasso_pred <- predict(weighted_lasso, newx = x, s = "lambda.1se", type = "response")
-unweighted_lasso_pred <- predict(unweighted_lasso, newx = x, s = "lambda.1se", type = "response")
-weighted_lasso_roc_obj <- roc(y, as.numeric(weighted_lasso_pred))
-unweighted_lasso_roc_obj <- roc(y, as.numeric(unweighted_lasso_pred))
-auc(weighted_lasso_roc_obj)
-auc(unweighted_lasso_roc_obj)
+pred_train_w_lasso <- as.numeric(predict(
+  weighted_lasso,
+  newx = x_train,
+  s = "lambda.1se",
+  type = "response"
+))
+pred_test_w_lasso <- as.numeric(predict(
+  weighted_lasso,
+  newx = x_test,
+  s = "lambda.1se",
+  type = "response"
+))
+
+pred_train_u_lasso <- as.numeric(predict(
+  unweighted_lasso,
+  newx = x_train,
+  s = "lambda.1se",
+  type = "response"
+))
+pred_test_u_lasso <- as.numeric(predict(
+  unweighted_lasso,
+  newx = x_test,
+  s = "lambda.1se",
+  type = "response"
+))
 ```
 
 # GAM
-```{r}
-df$survey_weight <- weights(brfss_design)
-```
 
 ## Weighted
 ```{r}
@@ -195,9 +304,9 @@ weighted_gam <- gam(
     insurance +
     pers_doc +
     last_checkup,
-  data = df,
+  data = train_df,
   family = binomial(),
-  weights = survey_weight
+  weights = train_df$WEIGHT
 )
 
 summary(weighted_gam)
@@ -225,7 +334,7 @@ unweighted_gam <- gam(
     insurance +
     pers_doc +
     last_checkup,
-  data = df,
+  data = train_df,
   family = binomial()
 )
 
@@ -238,76 +347,99 @@ summary(unweighted_gam)
 weighted_gam_coef <- summary(weighted_gam)$p.coeff
 unweighted_gam_coef <- summary(unweighted_gam)$p.coeff
 
-gam_comparison <- data.frame(
+weighted_gam_df <- data.frame(
   Variable = names(weighted_gam_coef),
   Weighted_Est = weighted_gam_coef,
+  Weighted_OR = exp(weighted_gam_coef)
+)
+
+unweighted_gam_df <- data.frame(
+  Variable = names(unweighted_gam_coef),
   Unweighted_Est = unweighted_gam_coef,
-  Weighted_OR = exp(weighted_gam_coef),
   Unweighted_OR = exp(unweighted_gam_coef)
 )
+
+gam_comparison <- merge(weighted_gam_df, unweighted_gam_df, by = "Variable")
+gam_comparison <- gam_comparison %>%
+  mutate(across(where(is.numeric), ~ round(.x, 3)))
 gam_comparison
 
-# smooth term plot 
+# smooth term plot
 par(mfrow = c(2, 2))
 plot(weighted_gam, select = 1, main = "physhlth (weighted)")
 plot(weighted_gam, select = 2, main = "menthlth (weighted)")
 plot(unweighted_gam, select = 1, main = "physhlth (unweighted)")
 plot(unweighted_gam, select = 2, main = "menthlth (unweighted)")
 
-# AUC comparison
-weighted_gam_pred <- predict(weighted_gam, type = "response")
-unweighted_gam_pred <- predict(unweighted_gam, type = "response")
-weighted_gam_roc_obj <- roc(y, as.numeric(weighted_gam_pred))
-unweighted_gam_roc_obj <- roc(y, as.numeric(unweighted_gam_pred))
-auc(weighted_gam_roc_obj)
-auc(unweighted_gam_roc_obj)
-
 # p-values for smooth terms
 summary(weighted_gam)$s.pv
 summary(unweighted_gam)$s.pv
+
+pred_train_w_gam <- as.numeric(predict(weighted_gam, type = "response"))
+pred_test_w_gam <- as.numeric(predict(
+  weighted_gam,
+  newdata = test_df,
+  type = "response"
+))
+
+pred_train_u_gam <- as.numeric(predict(unweighted_gam, type = "response"))
+pred_test_u_gam <- as.numeric(predict(
+  unweighted_gam,
+  newdata = test_df,
+  type = "response"
+))
 ```
 
 # Final model comparison
 ```{r}
-get_auc <- function(y, pred_prob) {
-  roc_obj <- roc(y, as.numeric(pred_prob))
-  auc(roc_obj)
-}
-
-pred_w_glm <- predict(weighted_glm, type = "response")
-auc_w_glm <- get_auc(y, pred_w_glm)
-pred_u_glm <- predict(unweighted_glm, type = "response")
-auc_u_glm <- get_auc(y, pred_u_glm)
-
-pred_w_lasso <- predict(weighted_lasso, newx = x, s = "lambda.1se", type = "response")
-auc_w_lasso <- get_auc(y, pred_w_lasso)
-pred_u_lasso <- predict(unweighted_lasso, newx = x, s = "lambda.1se", type = "response")
-auc_u_lasso <- get_auc(y, pred_u_lasso)
-
-pred_w_gam <- predict(weighted_gam, type = "response")
-auc_w_gam <- get_auc(y, pred_w_gam)
-pred_u_gam <- predict(unweighted_gam, type = "response")
-auc_u_gam <- get_auc(y, pred_u_gam)
-
-model_comparison <- data.frame(
-  Model = c(
+model_comparison <- rbind(
+  evaluate_model(
     "Logistic (Weighted)",
-    "Logistic (Unweighted)",
-    "LASSO (Weighted)",
-    "LASSO (Unweighted)",
-    "GAM (Weighted)",
-    "GAM (Unweighted)"
+    y_train,
+    pred_train_w_glm,
+    y_test,
+    pred_test_w_glm
   ),
-  AUC = c(
-    auc_w_glm,
-    auc_u_glm,
-    auc_w_lasso,
-    auc_u_lasso,
-    auc_w_gam,
-    auc_u_gam
+  evaluate_model(
+    "Logistic (Unweighted)",
+    y_train,
+    pred_train_u_glm,
+    y_test,
+    pred_test_u_glm
+  ),
+  evaluate_model(
+    "LASSO (Weighted)",
+    y_train,
+    pred_train_w_lasso,
+    y_test,
+    pred_test_w_lasso
+  ),
+  evaluate_model(
+    "LASSO (Unweighted)",
+    y_train,
+    pred_train_u_lasso,
+    y_test,
+    pred_test_u_lasso
+  ),
+  evaluate_model(
+    "GAM (Weighted)",
+    y_train,
+    pred_train_w_gam,
+    y_test,
+    pred_test_w_gam
+  ),
+  evaluate_model(
+    "GAM (Unweighted)",
+    y_train,
+    pred_train_u_gam,
+    y_test,
+    pred_test_u_gam
   )
 )
 
+model_comparison <- model_comparison %>%
+  mutate(across(where(is.numeric), ~ round(.x, 3))) %>%
+  arrange(desc(Test_AUC))
+
 model_comparison
 ```
-
