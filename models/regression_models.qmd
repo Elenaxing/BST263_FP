@@ -6,13 +6,14 @@ editor: visual
 
 # Setup
 ```{r}
-# install.packages(c("survey", "mgcv", "glmnet", "dplyr", "pROC"))
+# install.packages(c("survey", "mgcv", "glmnet", "dplyr", "pROC", "ranger"))
 
 library(survey)
 library(mgcv)
 library(glmnet)
 library(dplyr)
 library(pROC)
+library(ranger)
 ```
 
 # Data split and survey design
@@ -390,6 +391,72 @@ pred_test_u_gam <- as.numeric(predict(
 ))
 ```
 
+# Random Forest
+```{r}
+rf_train_df <- train_df %>%
+  mutate(MEDCOST1 = factor(MEDCOST1, levels = c(0, 1)))
+
+rf_test_df <- test_df %>%
+  mutate(MEDCOST1 = factor(MEDCOST1, levels = c(0, 1)))
+
+rf_grid <- expand.grid(
+  mtry = c(4, 6, 9),
+  min.node.size = c(50, 100),
+  KEEP.OUT.ATTRS = FALSE
+)
+
+set.seed(263)
+rf_tuning <- lapply(seq_len(nrow(rf_grid)), function(i) {
+  fit <- ranger(
+    predictor_formula,
+    data = rf_train_df,
+    probability = TRUE,
+    num.trees = 300,
+    mtry = rf_grid$mtry[i],
+    min.node.size = rf_grid$min.node.size[i],
+    respect.unordered.factors = "order",
+    seed = 263
+  )
+
+  data.frame(
+    mtry = rf_grid$mtry[i],
+    min.node.size = rf_grid$min.node.size[i],
+    OOB_Error = fit$prediction.error
+  )
+}) %>%
+  bind_rows() %>%
+  arrange(OOB_Error)
+
+rf_tuning
+
+best_rf <- rf_tuning[1, ]
+
+set.seed(263)
+random_forest <- ranger(
+  predictor_formula,
+  data = rf_train_df,
+  probability = TRUE,
+  num.trees = 500,
+  mtry = best_rf$mtry,
+  min.node.size = best_rf$min.node.size,
+  importance = "impurity",
+  respect.unordered.factors = "order",
+  seed = 263
+)
+
+pred_train_rf <- predict(random_forest, data = rf_train_df)$predictions[, "1"]
+pred_test_rf <- predict(random_forest, data = rf_test_df)$predictions[, "1"]
+
+rf_importance <- data.frame(
+  Variable = names(random_forest$variable.importance),
+  Importance = as.numeric(random_forest$variable.importance)
+) %>%
+  arrange(desc(Importance)) %>%
+  mutate(Importance = round(Importance, 3))
+
+head(rf_importance, 15)
+```
+
 # Final model comparison
 ```{r}
 model_comparison <- rbind(
@@ -434,6 +501,13 @@ model_comparison <- rbind(
     pred_train_u_gam,
     y_test,
     pred_test_u_gam
+  ),
+  evaluate_model(
+    "Random Forest",
+    y_train,
+    pred_train_rf,
+    y_test,
+    pred_test_rf
   )
 )
 
