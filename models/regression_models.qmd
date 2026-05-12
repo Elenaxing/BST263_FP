@@ -56,6 +56,7 @@ weighted_glm <- svyglm(
   design = brfss_design,
   family = quasibinomial()
 )
+
 summary(weighted_glm)
 ```
 
@@ -66,6 +67,7 @@ unweighted_glm <- glm(
   data = df,
   family = binomial()
 )
+
 summary(unweighted_glm)
 ```
 
@@ -158,7 +160,7 @@ plot(unweighted_lasso$glmnet.fit, xvar = "lambda")
 plot(unweighted_lasso)
 
 # AUC comparison
-weight_lasso_pred <- predict(weighted_lasso, newx = x, s = "lambda.1se", type = "response")
+weighted_lasso_pred <- predict(weighted_lasso, newx = x, s = "lambda.1se", type = "response")
 unweighted_lasso_pred <- predict(unweighted_lasso, newx = x, s = "lambda.1se", type = "response")
 weighted_lasso_roc_obj <- roc(y, as.numeric(weighted_lasso_pred))
 unweighted_lasso_roc_obj <- roc(y, as.numeric(unweighted_lasso_pred))
@@ -263,5 +265,49 @@ auc(unweighted_gam_roc_obj)
 # p-values for smooth terms
 summary(weighted_gam)$s.pv
 summary(unweighted_gam)$s.pv
+```
+
+# Final model comparison
+```{r}
+get_auc <- function(y, pred_prob) {
+  roc_obj <- roc(y, as.numeric(pred_prob))
+  auc(roc_obj)
+}
+
+pred_w_glm <- predict(weighted_glm, type = "response")
+auc_w_glm <- get_auc(y, pred_w_glm)
+pred_u_glm <- predict(unweighted_glm, type = "response")
+auc_u_glm <- get_auc(y, pred_u_glm)
+
+pred_w_lasso <- predict(weighted_lasso, newx = x, s = "lambda.1se", type = "response")
+auc_w_lasso <- get_auc(y, pred_w_lasso)
+pred_u_lasso <- predict(unweighted_lasso, newx = x, s = "lambda.1se", type = "response")
+auc_u_lasso <- get_auc(y, pred_u_lasso)
+
+pred_w_gam <- predict(weighted_gam, type = "response")
+auc_w_gam <- get_auc(y, pred_w_gam)
+pred_u_gam <- predict(unweighted_gam, type = "response")
+auc_u_gam <- get_auc(y, pred_u_gam)
+
+model_comparison <- data.frame(
+  Model = c(
+    "Logistic (Weighted)",
+    "Logistic (Unweighted)",
+    "LASSO (Weighted)",
+    "LASSO (Unweighted)",
+    "GAM (Weighted)",
+    "GAM (Unweighted)"
+  ),
+  AUC = c(
+    auc_w_glm,
+    auc_u_glm,
+    auc_w_lasso,
+    auc_u_lasso,
+    auc_w_gam,
+    auc_u_gam
+  )
+)
+
+model_comparison
 ```
 
