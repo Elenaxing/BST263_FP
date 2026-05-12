@@ -493,11 +493,14 @@ xgb_tuning <- lapply(seq_len(nrow(xgb_grid)), function(i) {
     verbose = 0
   )
 
+  cv_results <- cv_fit$evaluation_log
+  best_row <- which.max(cv_results$test_auc_mean)
+
   data.frame(
     eta = xgb_grid$eta[i],
     max_depth = xgb_grid$max_depth[i],
-    best_iteration = cv_fit$best_iteration,
-    CV_AUC = max(cv_fit$evaluation_log$test_auc_mean)
+    best_iteration = cv_results$iter[best_row],
+    CV_AUC = cv_results$test_auc_mean[best_row]
   )
 }) %>%
   bind_rows() %>%
@@ -511,7 +514,7 @@ xgb_params <- list(
   objective = "binary:logistic",
   eval_metric = "auc",
   eta = best_xgb$eta,
-  max_depth = best_xgb$max_depth,
+  max_depth = as.integer(best_xgb$max_depth),
   min_child_weight = 5,
   subsample = 0.8,
   colsample_bytree = 0.8,
@@ -522,7 +525,7 @@ set.seed(263)
 xgb_model <- xgb.train(
   params = xgb_params,
   data = dtrain,
-  nrounds = best_xgb$best_iteration,
+  nrounds = as.integer(best_xgb$best_iteration),
   verbose = 0
 )
 
