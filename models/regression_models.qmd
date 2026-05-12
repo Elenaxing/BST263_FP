@@ -1,6 +1,6 @@
 ---
 title: "Modeling Part I"
-format: html
+format: pdf
 editor: visual
 ---
 
