@@ -535,9 +535,74 @@ pred_test_xgb <- predict(xgb_model, dtest)
 xgb_importance <- xgb.importance(
   feature_names = colnames(x_train),
   model = xgb_model
-)
+) %>%
+  as.data.frame()
 
 head(xgb_importance, 15)
+```
+
+# Tree-based model figures
+```{r fig.width=9, fig.height=5}
+top_rf <- head(rf_importance, 10)
+top_xgb <- head(xgb_importance, 10)
+
+old_par <- par(no.readonly = TRUE)
+par(mfrow = c(1, 2), mar = c(5, 10, 4, 1))
+
+barplot(
+  rev(top_rf$Importance),
+  names.arg = rev(top_rf$Variable),
+  horiz = TRUE,
+  las = 1,
+  cex.names = 0.75,
+  main = "Random Forest",
+  xlab = "Impurity importance",
+  col = "#4C78A8",
+  border = NA
+)
+
+barplot(
+  rev(top_xgb$Gain),
+  names.arg = rev(top_xgb$Feature),
+  horiz = TRUE,
+  las = 1,
+  cex.names = 0.75,
+  main = "XGBoost",
+  xlab = "Gain",
+  col = "#F58518",
+  border = NA
+)
+
+par(old_par)
+```
+
+```{r fig.width=7, fig.height=5}
+roc_rf <- roc(y_test, pred_test_rf, quiet = TRUE)
+roc_xgb <- roc(y_test, pred_test_xgb, quiet = TRUE)
+
+plot(
+  roc_rf,
+  col = "#4C78A8",
+  lwd = 2,
+  main = "ROC Curves: Random Forest vs XGBoost"
+)
+plot(
+  roc_xgb,
+  col = "#F58518",
+  lwd = 2,
+  add = TRUE
+)
+
+legend(
+  "bottomright",
+  legend = c(
+    paste0("Random Forest AUC = ", round(as.numeric(auc(roc_rf)), 3)),
+    paste0("XGBoost AUC = ", round(as.numeric(auc(roc_xgb)), 3))
+  ),
+  col = c("#4C78A8", "#F58518"),
+  lwd = 2,
+  bty = "n"
+)
 ```
 
 # Final model comparison
