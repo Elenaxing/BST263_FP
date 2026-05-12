@@ -5,6 +5,7 @@ editor: visual
 ---
 
 # Setup
+
 ```{r}
 # install.packages(c("survey", "mgcv", "glmnet", "dplyr", "pROC", "ranger", "xgboost"))
 
@@ -18,6 +19,7 @@ library(xgboost)
 ```
 
 # Data split and survey design
+
 ```{r}
 df <- readRDS("../data/brfss2024_clean.rds")
 
@@ -73,6 +75,7 @@ brfss_train_design <- svydesign(
 ```
 
 # Evaluation helpers
+
 ```{r}
 safe_divide <- function(num, den) {
   ifelse(den == 0, NA_real_, num / den)
@@ -127,6 +130,7 @@ evaluate_model <- function(model_name, train_y, train_prob, test_y, test_prob) {
 # Logistic Regression
 
 ## Weighted
+
 ```{r}
 weighted_glm <- svyglm(
   predictor_formula,
@@ -138,6 +142,7 @@ summary(weighted_glm)
 ```
 
 ## Unweighted
+
 ```{r}
 unweighted_glm <- glm(
   predictor_formula,
@@ -149,6 +154,7 @@ summary(unweighted_glm)
 ```
 
 ## Comparison
+
 ```{r}
 # model summary comparison table
 weighted_glm_summary <- summary(weighted_glm)$coefficients
@@ -206,12 +212,14 @@ pred_test_u_glm <- as.numeric(predict(
 ```
 
 # Logistic Regression with Lasso
+
 ```{r}
 x_train <- model.matrix(predictor_formula, data = train_df)[, -1]
 x_test <- model.matrix(predictor_formula, data = test_df)[, -1]
 ```
 
 ## Weighted
+
 ```{r}
 set.seed(263)
 weighted_lasso <- cv.glmnet(
@@ -226,6 +234,7 @@ weighted_lasso <- cv.glmnet(
 ```
 
 ## Unweighted
+
 ```{r}
 set.seed(263)
 unweighted_lasso <- cv.glmnet(
@@ -239,6 +248,7 @@ unweighted_lasso <- cv.glmnet(
 ```
 
 ## Comparison
+
 ```{r}
 # Lasso selected variables
 lasso_out <- cbind(
@@ -285,6 +295,7 @@ pred_test_u_lasso <- as.numeric(predict(
 # GAM
 
 ## Weighted
+
 ```{r}
 weighted_gam <- gam(
   MEDCOST1 ~
@@ -315,6 +326,7 @@ summary(weighted_gam)
 ```
 
 ## Unweighted
+
 ```{r}
 unweighted_gam <- gam(
   MEDCOST1 ~
@@ -344,6 +356,7 @@ summary(unweighted_gam)
 ```
 
 ## Comparison
+
 ```{r}
 # coefficients comparison table
 weighted_gam_coef <- summary(weighted_gam)$p.coeff
@@ -393,6 +406,7 @@ pred_test_u_gam <- as.numeric(predict(
 ```
 
 # Random Forest
+
 ```{r}
 rf_train_df <- train_df %>%
   mutate(MEDCOST1 = factor(MEDCOST1, levels = c(0, 1)))
@@ -459,6 +473,7 @@ head(rf_importance, 15)
 ```
 
 # Boosting
+
 ```{r}
 dtrain <- xgb.DMatrix(data = x_train, label = y_train)
 dtest <- xgb.DMatrix(data = x_test, label = y_test)
@@ -542,6 +557,7 @@ head(xgb_importance, 15)
 ```
 
 # Tree-based model figures
+
 ```{r fig.width=9, fig.height=5}
 top_rf <- head(rf_importance, 10)
 top_xgb <- head(xgb_importance, 10)
@@ -606,6 +622,7 @@ legend(
 ```
 
 # Final model comparison
+
 ```{r}
 model_comparison <- rbind(
   evaluate_model(
