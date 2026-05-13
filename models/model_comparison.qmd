@@ -227,7 +227,7 @@ weighted_lasso <- cv.glmnet(
   y_train,
   family = "binomial",
   alpha = 1,
-  nfolds = 5,
+  nfolds = 10,
   type.measure = "auc",
   weights = train_df$WEIGHT
 )
@@ -242,7 +242,7 @@ unweighted_lasso <- cv.glmnet(
   y_train,
   family = "binomial",
   alpha = 1,
-  nfolds = 5,
+  nfolds = 10,
   type.measure = "auc"
 )
 ```
@@ -695,6 +695,7 @@ model_comparison
 ```
 
 # Visuals
+
 ## ROC Curves for Five Unweighted Models
 
 ```{r}
@@ -778,7 +779,6 @@ kable(
 )
 ```
 
-
 # Table of weighted versus unweighted comparison for regression-based models
 
 ```{r}
@@ -819,6 +819,3 @@ kable(
   align = "llrrrrr"
 )
 ```
-
-
-
