@@ -559,6 +559,8 @@ head(xgb_importance, 15)
 # Tree-based model figures
 
 ```{r fig.width=9, fig.height=5}
+#png(filename = "../figures/tree_model_variable_importance.png", width = 1200, height = 650, res = 150)
+
 top_rf <- head(rf_importance, 10)
 top_xgb <- head(xgb_importance, 10)
 
@@ -593,6 +595,8 @@ par(old_par)
 ```
 
 ```{r fig.width=7, fig.height=5}
+#png(filename = "../figures/roc_rf_xgb.png", width = 900, height = 650, res = 150)
+
 roc_rf <- roc(y_test, pred_test_rf, quiet = TRUE)
 roc_xgb <- roc(y_test, pred_test_xgb, quiet = TRUE)
 
@@ -689,3 +693,132 @@ model_comparison <- model_comparison %>%
 
 model_comparison
 ```
+
+# Visuals
+## ROC Curves for Five Unweighted Models
+
+```{r}
+library(pROC)
+
+# ROC objects for five unweighted / non-survey-weighted models
+roc_logistic <- roc(y_test, pred_test_u_glm, quiet = TRUE)
+roc_lasso    <- roc(y_test, pred_test_u_lasso, quiet = TRUE)
+roc_gam      <- roc(y_test, pred_test_u_gam, quiet = TRUE)
+roc_rf       <- roc(y_test, pred_test_rf, quiet = TRUE)
+roc_xgb      <- roc(y_test, pred_test_xgb, quiet = TRUE)
+
+roc_list <- list(
+  "Logistic Regression" = roc_logistic,
+  "LASSO" = roc_lasso,
+  "GAM" = roc_gam,
+  "Random Forest" = roc_rf,
+  "XGBoost" = roc_xgb
+)
+
+cols <- c("#1B9E77", "#D95F02", "#7570B3", "#4C78A8", "#F58518")
+
+# Save ROC curve as PNG
+#png("../figures/roc_curves_5_models.png", width = 900, height = 700, res = 120)
+
+plot(
+  roc_list[[1]],
+  col = cols[1],
+  lwd = 2,
+  legacy.axes = TRUE,
+  main = "ROC Curves for Five Models",
+  xlab = "1 - Specificity",
+  ylab = "Sensitivity"
+)
+
+for (i in 2:length(roc_list)) {
+  plot(
+    roc_list[[i]],
+    col = cols[i],
+    lwd = 2,
+    add = TRUE
+  )
+}
+
+legend(
+  "bottomright",
+  legend = paste0(
+    names(roc_list),
+    " AUC = ",
+    round(sapply(roc_list, function(x) as.numeric(auc(x))), 3)
+  ),
+  col = cols,
+  lwd = 2,
+  cex = 0.8,
+  bty = "n"
+)
+
+#dev.off()
+```
+
+# Table of five unweighted models
+
+```{r}
+library(dplyr)
+library(knitr)
+
+table_5_unweighted <- model_comparison %>%
+  filter(Model %in% c(
+    "Logistic (Unweighted)",
+    "LASSO (Unweighted)",
+    "GAM (Unweighted)",
+    "Random Forest",
+    "XGBoost"
+  )) %>%
+  arrange(desc(Test_AUC))
+
+kable(
+  table_5_unweighted,
+  digits = 3,
+  align = "lrrrrr"
+)
+```
+
+
+# Table of weighted versus unweighted comparison for regression-based models
+
+```{r}
+table_weighted_vs_unweighted <- model_comparison %>%
+  filter(Model %in% c(
+    "Logistic (Weighted)",
+    "Logistic (Unweighted)",
+    "LASSO (Weighted)",
+    "LASSO (Unweighted)",
+    "GAM (Weighted)",
+    "GAM (Unweighted)"
+  )) %>%
+  mutate(
+    Base_Model = case_when(
+      grepl("Logistic", Model) ~ "Logistic Regression",
+      grepl("LASSO", Model) ~ "LASSO",
+      grepl("GAM", Model) ~ "GAM"
+    ),
+    Weighting = case_when(
+      grepl("\\(Weighted\\)", Model) ~ "Weighted",
+      grepl("\\(Unweighted\\)", Model) ~ "Unweighted"
+    )
+  ) %>%
+  select(
+    Base_Model,
+    Weighting,
+    Test_AUC,
+    Threshold,
+    Accuracy,
+    Sensitivity,
+    Specificity
+  ) %>%
+  arrange(Base_Model, Weighting)
+
+kable(
+  table_weighted_vs_unweighted,
+  digits = 3,
+  align = "llrrrrr"
+)
+```
+
+
+
