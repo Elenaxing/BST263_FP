@@ -737,55 +737,95 @@ mtext(
 par(mfrow = c(1,1))
 ```
 
-
-## Comparison
-
+## GAM
+Coefficient stability
 ```{r}
-# coefficients comparison table
 weighted_gam_coef <- summary(weighted_gam)$p.coeff
 unweighted_gam_coef <- summary(unweighted_gam)$p.coeff
 
 weighted_gam_df <- data.frame(
   Variable = names(weighted_gam_coef),
-  Weighted_Est = weighted_gam_coef,
-  Weighted_OR = exp(weighted_gam_coef)
+  Weighted_Est = as.numeric(weighted_gam_coef),
+  Weighted_OR = exp(as.numeric(weighted_gam_coef))
 )
 
 unweighted_gam_df <- data.frame(
   Variable = names(unweighted_gam_coef),
-  Unweighted_Est = unweighted_gam_coef,
-  Unweighted_OR = exp(unweighted_gam_coef)
+  Unweighted_Est = as.numeric(unweighted_gam_coef),
+  Unweighted_OR = exp(as.numeric(unweighted_gam_coef))
 )
 
 gam_comparison <- merge(weighted_gam_df, unweighted_gam_df, by = "Variable")
+
+weighted_s_table <- summary(weighted_gam)$s.table
+unweighted_s_table <- summary(unweighted_gam)$s.table
+
+weighted_s_df <- data.frame(
+  Variable = rownames(weighted_s_table),
+  Weighted_s_p = weighted_s_table[, "p-value"]
+)
+
+unweighted_s_df <- data.frame(
+  Variable = rownames(unweighted_s_table),
+  Unweighted_s_p = unweighted_s_table[, "p-value"]
+)
+
+gam_comparison <- merge(gam_comparison, weighted_s_df, by = "Variable", all.x = TRUE)
+gam_comparison <- merge(gam_comparison, unweighted_s_df, by = "Variable", all.x = TRUE)
+
 gam_comparison <- gam_comparison %>%
-  mutate(across(where(is.numeric), ~ round(.x, 3)))
+  mutate(
+    Estimate_Diff = Weighted_Est - Unweighted_Est,
+    OR_Diff = Weighted_OR - Unweighted_OR,
+    
+    Direction_Changed =
+      sign(Weighted_Est) != sign(Unweighted_Est),
+    
+    Smooth_Significance_Changed =
+      (Weighted_s_p < 0.05) != (Unweighted_s_p < 0.05)
+  )
+
 gam_comparison
 
+gam_sensitivity_summary <- data.frame(
+  Metric = c(
+    "Number of variables",
+    "Variables with direction change",
+    "Variables with selection change",
+    "Variables with smooth significance change",
+    "Mean absolute coefficient difference",
+    "Median absolute coefficient difference",
+    "Maximum absolute coefficient difference"
+  ),
+  Value = c(
+    nrow(gam_comparison),
+    sum(gam_comparison$Direction_Changed, na.rm = TRUE),
+    sum(gam_comparison$Selection_Changed, na.rm = TRUE),
+    sum(gam_comparison$Smooth_Significance_Changed, na.rm = TRUE),
+    mean(abs(gam_comparison$Estimate_Diff), na.rm = TRUE),
+    median(abs(gam_comparison$Estimate_Diff), na.rm = TRUE),
+    max(abs(gam_comparison$Estimate_Diff), na.rm = TRUE)
+  )
+)
+
+gam_sensitivity_summary
+```
+
+Smooth term stability
+```{r}
 # smooth term plot
 par(mfrow = c(2, 2))
 plot(weighted_gam, select = 1, main = "physhlth (weighted)")
 plot(weighted_gam, select = 2, main = "menthlth (weighted)")
 plot(unweighted_gam, select = 1, main = "physhlth (unweighted)")
 plot(unweighted_gam, select = 2, main = "menthlth (unweighted)")
+mtext(
+  "Weighted vs Unweighted GAM Comparison",
+  outer = TRUE,
+  cex = 1.3
+)
 
-# p-values for smooth terms
-summary(weighted_gam)$s.pv
-summary(unweighted_gam)$s.pv
-
-pred_train_w_gam <- as.numeric(predict(weighted_gam, type = "response"))
-pred_test_w_gam <- as.numeric(predict(
-  weighted_gam,
-  newdata = test_df,
-  type = "response"
-))
-
-pred_train_u_gam <- as.numeric(predict(unweighted_gam, type = "response"))
-pred_test_u_gam <- as.numeric(predict(
-  unweighted_gam,
-  newdata = test_df,
-  type = "response"
-))
+par(mfrow = c(1,1))
 ```
 
 
