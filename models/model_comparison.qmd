@@ -127,22 +127,8 @@ evaluate_model <- function(model_name, train_y, train_prob, test_y, test_prob) {
 }
 ```
 
-# Logistic Regression
-
-## Weighted
-
-```{r}
-weighted_glm <- svyglm(
-  predictor_formula,
-  design = brfss_train_design,
-  family = quasibinomial()
-)
-
-summary(weighted_glm)
-```
-
-## Unweighted
-
+# Unweighted models 
+## Logistic Regression
 ```{r}
 unweighted_glm <- glm(
   predictor_formula,
@@ -153,87 +139,11 @@ unweighted_glm <- glm(
 summary(unweighted_glm)
 ```
 
-## Comparison
-
-```{r}
-# model summary comparison table
-weighted_glm_summary <- summary(weighted_glm)$coefficients
-unweighted_glm_summary <- summary(unweighted_glm)$coefficients
-
-weighted_glm_df <- data.frame(
-  Variable = rownames(weighted_glm_summary),
-  Weighted_Estimate = weighted_glm_summary[, 1],
-  Weighted_SE = weighted_glm_summary[, 2],
-  Weighted_p = weighted_glm_summary[, 4]
-)
-
-unweighted_glm_df <- data.frame(
-  Variable = rownames(unweighted_glm_summary),
-  Unweighted_Estimate = unweighted_glm_summary[, 1],
-  Unweighted_SE = unweighted_glm_summary[, 2],
-  Unweighted_p = unweighted_glm_summary[, 4]
-)
-
-# OR and 95% CI
-weighted_glm_df$Weighted_OR <- exp(weighted_glm_df$Weighted_Estimate)
-weighted_ci <- exp(confint(weighted_glm))
-weighted_glm_df$Weighted_OR_lower <- weighted_ci[, 1]
-weighted_glm_df$Weighted_OR_upper <- weighted_ci[, 2]
-
-unweighted_glm_df$Unweighted_OR <- exp(unweighted_glm_df$Unweighted_Estimate)
-unweighted_ci <- exp(confint.default(unweighted_glm))
-unweighted_glm_df$Unweighted_OR_lower <- unweighted_ci[, 1]
-unweighted_glm_df$Unweighted_OR_upper <- unweighted_ci[, 2]
-
-comparison_glm_table <- merge(
-  weighted_glm_df,
-  unweighted_glm_df,
-  by = "Variable"
-)
-
-comparison_glm_table <- comparison_glm_table %>%
-  mutate(across(where(is.numeric), ~ round(.x, 3)))
-
-comparison_glm_table
-
-pred_train_w_glm <- as.numeric(predict(weighted_glm, type = "response"))
-pred_test_w_glm <- as.numeric(predict(
-  weighted_glm,
-  newdata = test_df,
-  type = "response"
-))
-
-pred_train_u_glm <- as.numeric(predict(unweighted_glm, type = "response"))
-pred_test_u_glm <- as.numeric(predict(
-  unweighted_glm,
-  newdata = test_df,
-  type = "response"
-))
-```
-
-# Logistic Regression with Lasso
-
+## Logistic Regression with Lasso
 ```{r}
 x_train <- model.matrix(predictor_formula, data = train_df)[, -1]
 x_test <- model.matrix(predictor_formula, data = test_df)[, -1]
 ```
-
-## Weighted
-
-```{r}
-set.seed(263)
-weighted_lasso <- cv.glmnet(
-  x_train,
-  y_train,
-  family = "binomial",
-  alpha = 1,
-  nfolds = 10,
-  type.measure = "auc",
-  weights = train_df$WEIGHT
-)
-```
-
-## Unweighted
 
 ```{r}
 set.seed(263)
@@ -247,86 +157,7 @@ unweighted_lasso <- cv.glmnet(
 )
 ```
 
-## Comparison
-
-```{r}
-# Lasso selected variables
-lasso_out <- cbind(
-  coef(weighted_lasso, s = "lambda.1se"),
-  coef(unweighted_lasso, s = "lambda.1se")
-)
-colnames(lasso_out) <- c("Weighted", "Unweighted")
-lasso_out
-
-# Lasso plot
-par(mfrow = c(2, 2))
-plot(weighted_lasso$glmnet.fit, xvar = "lambda")
-plot(weighted_lasso)
-plot(unweighted_lasso$glmnet.fit, xvar = "lambda")
-plot(unweighted_lasso)
-
-pred_train_w_lasso <- as.numeric(predict(
-  weighted_lasso,
-  newx = x_train,
-  s = "lambda.1se",
-  type = "response"
-))
-pred_test_w_lasso <- as.numeric(predict(
-  weighted_lasso,
-  newx = x_test,
-  s = "lambda.1se",
-  type = "response"
-))
-
-pred_train_u_lasso <- as.numeric(predict(
-  unweighted_lasso,
-  newx = x_train,
-  s = "lambda.1se",
-  type = "response"
-))
-pred_test_u_lasso <- as.numeric(predict(
-  unweighted_lasso,
-  newx = x_test,
-  s = "lambda.1se",
-  type = "response"
-))
-```
-
-# GAM
-
-## Weighted
-
-```{r}
-weighted_gam <- gam(
-  MEDCOST1 ~
-    s(physhlth_days) +
-    s(menthlth_days) +
-    region +
-    rurality +
-    sex +
-    agegroup +
-    race +
-    income +
-    maritalstatus +
-    education +
-    employment +
-    healthstatus +
-    depression +
-    chronic_count +
-    any_disability +
-    insurance +
-    pers_doc +
-    last_checkup,
-  data = train_df,
-  family = binomial(),
-  weights = train_df$WEIGHT
-)
-
-summary(weighted_gam)
-```
-
-## Unweighted
-
+## GAM
 ```{r}
 unweighted_gam <- gam(
   MEDCOST1 ~
@@ -353,56 +184,6 @@ unweighted_gam <- gam(
 )
 
 summary(unweighted_gam)
-```
-
-## Comparison
-
-```{r}
-# coefficients comparison table
-weighted_gam_coef <- summary(weighted_gam)$p.coeff
-unweighted_gam_coef <- summary(unweighted_gam)$p.coeff
-
-weighted_gam_df <- data.frame(
-  Variable = names(weighted_gam_coef),
-  Weighted_Est = weighted_gam_coef,
-  Weighted_OR = exp(weighted_gam_coef)
-)
-
-unweighted_gam_df <- data.frame(
-  Variable = names(unweighted_gam_coef),
-  Unweighted_Est = unweighted_gam_coef,
-  Unweighted_OR = exp(unweighted_gam_coef)
-)
-
-gam_comparison <- merge(weighted_gam_df, unweighted_gam_df, by = "Variable")
-gam_comparison <- gam_comparison %>%
-  mutate(across(where(is.numeric), ~ round(.x, 3)))
-gam_comparison
-
-# smooth term plot
-par(mfrow = c(2, 2))
-plot(weighted_gam, select = 1, main = "physhlth (weighted)")
-plot(weighted_gam, select = 2, main = "menthlth (weighted)")
-plot(unweighted_gam, select = 1, main = "physhlth (unweighted)")
-plot(unweighted_gam, select = 2, main = "menthlth (unweighted)")
-
-# p-values for smooth terms
-summary(weighted_gam)$s.pv
-summary(unweighted_gam)$s.pv
-
-pred_train_w_gam <- as.numeric(predict(weighted_gam, type = "response"))
-pred_test_w_gam <- as.numeric(predict(
-  weighted_gam,
-  newdata = test_df,
-  type = "response"
-))
-
-pred_train_u_gam <- as.numeric(predict(unweighted_gam, type = "response"))
-pred_test_u_gam <- as.numeric(predict(
-  unweighted_gam,
-  newdata = test_df,
-  type = "response"
-))
 ```
 
 # Random Forest
@@ -555,6 +336,314 @@ xgb_importance <- xgb.importance(
 
 head(xgb_importance, 15)
 ```
+
+
+# Weighted models
+## Logistic Regression
+```{r}
+weighted_glm <- svyglm(
+  predictor_formula,
+  design = brfss_train_design,
+  family = quasibinomial()
+)
+
+summary(weighted_glm)
+```
+
+## Logistic Regression with Lasso
+```{r}
+set.seed(263)
+weighted_lasso <- cv.glmnet(
+  x_train,
+  y_train,
+  family = "binomial",
+  alpha = 1,
+  nfolds = 10,
+  type.measure = "auc",
+  weights = train_df$WEIGHT
+)
+```
+
+## GAM
+```{r}
+weighted_gam <- gam(
+  MEDCOST1 ~
+    s(physhlth_days) +
+    s(menthlth_days) +
+    region +
+    rurality +
+    sex +
+    agegroup +
+    race +
+    income +
+    maritalstatus +
+    education +
+    employment +
+    healthstatus +
+    depression +
+    chronic_count +
+    any_disability +
+    insurance +
+    pers_doc +
+    last_checkup,
+  data = train_df,
+  family = binomial(),
+  weights = train_df$WEIGHT
+)
+
+summary(weighted_gam)
+```
+
+
+# Sensitively Analysis
+## Logistic Regression
+Coefficient stability
+```{r}
+# model summary comparison table
+weighted_glm_summary <- summary(weighted_glm)$coefficients
+unweighted_glm_summary <- summary(unweighted_glm)$coefficients
+
+weighted_glm_df <- data.frame(
+  Variable = rownames(weighted_glm_summary),
+  Weighted_Estimate = weighted_glm_summary[, 1],
+  Weighted_SE = weighted_glm_summary[, 2],
+  Weighted_p = weighted_glm_summary[, 4]
+)
+
+unweighted_glm_df <- data.frame(
+  Variable = rownames(unweighted_glm_summary),
+  Unweighted_Estimate = unweighted_glm_summary[, 1],
+  Unweighted_SE = unweighted_glm_summary[, 2],
+  Unweighted_p = unweighted_glm_summary[, 4]
+)
+
+# OR and 95% CI
+weighted_glm_df$Weighted_OR <- exp(weighted_glm_df$Weighted_Estimate)
+weighted_ci <- exp(confint(weighted_glm))
+weighted_glm_df$Weighted_OR_lower <- weighted_ci[, 1]
+weighted_glm_df$Weighted_OR_upper <- weighted_ci[, 2]
+
+unweighted_glm_df$Unweighted_OR <- exp(unweighted_glm_df$Unweighted_Estimate)
+unweighted_ci <- exp(confint.default(unweighted_glm))
+unweighted_glm_df$Unweighted_OR_lower <- unweighted_ci[, 1]
+unweighted_glm_df$Unweighted_OR_upper <- unweighted_ci[, 2]
+
+comparison_glm_table <- merge(
+  weighted_glm_df,
+  unweighted_glm_df,
+  by = "Variable"
+)
+
+comparison_glm_table <- comparison_glm_table %>%
+  mutate(across(where(is.numeric), ~ round(.x, 3)))
+
+comparison_glm_table <- comparison_glm_table %>%
+  mutate(
+    Estimate_Diff = Weighted_Estimate - Unweighted_Estimate,
+    OR_Diff = Weighted_OR - Unweighted_OR,
+    Significant_Weighted = Weighted_p < 0.05,
+    Significant_Unweighted = Unweighted_p < 0.05
+  )
+
+comparison_glm_table <- comparison_glm_table %>%
+  mutate(
+    Estimate_Diff = Weighted_Estimate - Unweighted_Estimate,
+    OR_Diff = Weighted_OR - Unweighted_OR,
+    Direction_Changed =
+      sign(Weighted_Estimate) != sign(Unweighted_Estimate),
+    Significance_Changed =
+      (Weighted_p < 0.05) != (Unweighted_p < 0.05)
+  )
+
+glm_sensitivity_summary <- data.frame(
+  Metric = c(
+    "Number of variables",
+    "Variables with direction change",
+    "Variables with significance change",
+    "Mean absolute coefficient difference",
+    "Median absolute coefficient difference",
+    "Maximum absolute coefficient difference"
+  ),
+  Value = c(
+    nrow(comparison_glm_table),
+    sum(comparison_glm_table$Direction_Changed, na.rm = TRUE),
+    sum(comparison_glm_table$Significance_Changed, na.rm = TRUE),
+    mean(abs(comparison_glm_table$Estimate_Diff), na.rm = TRUE),
+    median(abs(comparison_glm_table$Estimate_Diff), na.rm = TRUE),
+    max(abs(comparison_glm_table$Estimate_Diff), na.rm = TRUE)
+  )
+)
+
+glm_sensitivity_summary
+
+top_changes <- comparison_glm_table %>%
+  arrange(desc(abs(Estimate_Diff))) %>%
+  select(
+    Variable,
+    Weighted_OR,
+    Unweighted_OR,
+    Estimate_Diff,
+    Significance_Changed
+  ) %>%
+  head(10)
+
+top_changes
+
+plot(
+  comparison_glm_table$Weighted_OR,
+  comparison_glm_table$Unweighted_OR,
+  xlab = "Weighted Odds Ratios",
+  ylab = "Unweighted Odds Ratios",
+  main = "Sensitivity Analysis of Logistic Regression"
+)
+
+abline(0, 1, col = "red")
+
+```
+
+Inference and Prediction stability
+```{r}
+pred_train_w_glm <- as.numeric(predict(weighted_glm, type = "response"))
+pred_test_w_glm <- as.numeric(predict(
+  weighted_glm,
+  newdata = test_df,
+  type = "response"
+))
+
+pred_train_u_glm <- as.numeric(predict(unweighted_glm, type = "response"))
+pred_test_u_glm <- as.numeric(predict(
+  unweighted_glm,
+  newdata = test_df,
+  type = "response"
+))
+
+auc_train_w <- auc(train_df$MEDCOST1, pred_train_w_glm)
+auc_train_u <- auc(train_df$MEDCOST1, pred_train_u_glm)
+
+auc_test_w <- auc(test_df$MEDCOST1, pred_test_w_glm)
+auc_test_u <- auc(test_df$MEDCOST1, pred_test_u_glm)
+
+glm_auc_table <- data.frame(
+  Model = c(
+    "Weighted Logistic",
+    "Unweighted Logistic"
+  ),
+  Train_AUC = c(
+    auc_train_w,
+    auc_train_u
+  ),
+  Test_AUC = c(
+    auc_test_w,
+    auc_test_u
+  )
+)
+
+glm_auc_table <- glm_auc_table %>%
+  mutate(across(where(is.numeric), round, 3))
+
+glm_auc_table
+
+cor(pred_train_w_glm, pred_train_u_glm)
+```
+
+
+## Logistic Regression with Lasso
+
+```{r}
+# Lasso selected variables
+lasso_out <- cbind(
+  coef(weighted_lasso, s = "lambda.1se"),
+  coef(unweighted_lasso, s = "lambda.1se")
+)
+colnames(lasso_out) <- c("Weighted", "Unweighted")
+lasso_out
+
+# Lasso plot
+par(mfrow = c(2, 2))
+plot(weighted_lasso$glmnet.fit, xvar = "lambda")
+plot(weighted_lasso)
+plot(unweighted_lasso$glmnet.fit, xvar = "lambda")
+plot(unweighted_lasso)
+
+pred_train_w_lasso <- as.numeric(predict(
+  weighted_lasso,
+  newx = x_train,
+  s = "lambda.1se",
+  type = "response"
+))
+pred_test_w_lasso <- as.numeric(predict(
+  weighted_lasso,
+  newx = x_test,
+  s = "lambda.1se",
+  type = "response"
+))
+
+pred_train_u_lasso <- as.numeric(predict(
+  unweighted_lasso,
+  newx = x_train,
+  s = "lambda.1se",
+  type = "response"
+))
+pred_test_u_lasso <- as.numeric(predict(
+  unweighted_lasso,
+  newx = x_test,
+  s = "lambda.1se",
+  type = "response"
+))
+```
+
+
+
+## Comparison
+
+```{r}
+# coefficients comparison table
+weighted_gam_coef <- summary(weighted_gam)$p.coeff
+unweighted_gam_coef <- summary(unweighted_gam)$p.coeff
+
+weighted_gam_df <- data.frame(
+  Variable = names(weighted_gam_coef),
+  Weighted_Est = weighted_gam_coef,
+  Weighted_OR = exp(weighted_gam_coef)
+)
+
+unweighted_gam_df <- data.frame(
+  Variable = names(unweighted_gam_coef),
+  Unweighted_Est = unweighted_gam_coef,
+  Unweighted_OR = exp(unweighted_gam_coef)
+)
+
+gam_comparison <- merge(weighted_gam_df, unweighted_gam_df, by = "Variable")
+gam_comparison <- gam_comparison %>%
+  mutate(across(where(is.numeric), ~ round(.x, 3)))
+gam_comparison
+
+# smooth term plot
+par(mfrow = c(2, 2))
+plot(weighted_gam, select = 1, main = "physhlth (weighted)")
+plot(weighted_gam, select = 2, main = "menthlth (weighted)")
+plot(unweighted_gam, select = 1, main = "physhlth (unweighted)")
+plot(unweighted_gam, select = 2, main = "menthlth (unweighted)")
+
+# p-values for smooth terms
+summary(weighted_gam)$s.pv
+summary(unweighted_gam)$s.pv
+
+pred_train_w_gam <- as.numeric(predict(weighted_gam, type = "response"))
+pred_test_w_gam <- as.numeric(predict(
+  weighted_gam,
+  newdata = test_df,
+  type = "response"
+))
+
+pred_train_u_gam <- as.numeric(predict(unweighted_gam, type = "response"))
+pred_test_u_gam <- as.numeric(predict(
+  unweighted_gam,
+  newdata = test_df,
+  type = "response"
+))
+```
+
 
 # Tree-based model figures
 
