@@ -489,6 +489,7 @@ top_changes <- comparison_glm_table %>%
 
 top_changes
 
+par(mfrow = c(1,1))
 plot(
   comparison_glm_table$Weighted_OR,
   comparison_glm_table$Unweighted_OR,
@@ -516,32 +517,6 @@ pred_test_u_glm <- as.numeric(predict(
   newdata = test_df,
   type = "response"
 ))
-
-auc_train_w <- auc(train_df$MEDCOST1, pred_train_w_glm)
-auc_train_u <- auc(train_df$MEDCOST1, pred_train_u_glm)
-
-auc_test_w <- auc(test_df$MEDCOST1, pred_test_w_glm)
-auc_test_u <- auc(test_df$MEDCOST1, pred_test_u_glm)
-
-glm_auc_table <- data.frame(
-  Model = c(
-    "Weighted Logistic",
-    "Unweighted Logistic"
-  ),
-  Train_AUC = c(
-    auc_train_w,
-    auc_train_u
-  ),
-  Test_AUC = c(
-    auc_test_w,
-    auc_test_u
-  )
-)
-
-glm_auc_table <- glm_auc_table %>%
-  mutate(across(where(is.numeric), round, 3))
-
-glm_auc_table
 
 cor(pred_train_w_glm, pred_train_u_glm)
 ```
@@ -688,7 +663,7 @@ par(
   oma = c(0, 0, 2, 0),   # outer margin for global title
   cex.main = 0.9,       # smaller titles
   cex.axis = 0.8,       # smaller axis labels
-  cex.lab = 0.9         # smaller axis titles
+  cex.lab = 0.7         # smaller axis titles
 )
 # Weighted coefficient paths
 plot(
@@ -827,7 +802,6 @@ mtext(
 
 par(mfrow = c(1,1))
 ```
-
 
 # Tree-based model figures
 
