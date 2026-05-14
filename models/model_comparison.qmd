@@ -548,7 +548,7 @@ cor(pred_train_w_glm, pred_train_u_glm)
 
 
 ## Logistic Regression with Lasso
-
+Coefficient stability
 ```{r}
 # Lasso selected variables
 lasso_out <- cbind(
@@ -558,13 +558,77 @@ lasso_out <- cbind(
 colnames(lasso_out) <- c("Weighted", "Unweighted")
 lasso_out
 
-# Lasso plot
-par(mfrow = c(2, 2))
-plot(weighted_lasso$glmnet.fit, xvar = "lambda")
-plot(weighted_lasso)
-plot(unweighted_lasso$glmnet.fit, xvar = "lambda")
-plot(unweighted_lasso)
+coef_w <- as.matrix(coef(weighted_lasso, s = "lambda.1se"))
+coef_u <- as.matrix(coef(unweighted_lasso, s = "lambda.1se"))
 
+weighted_lasso_df <- data.frame(
+  Variable = rownames(coef_w),
+  Weighted_Estimate = as.numeric(coef_w[, 1])
+)
+
+unweighted_lasso_df <- data.frame(
+  Variable = rownames(coef_u),
+  Unweighted_Estimate = as.numeric(coef_u[, 1])
+)
+
+comparison_lasso_table <- merge(
+  weighted_lasso_df,
+  unweighted_lasso_df,
+  by = "Variable",
+  all = TRUE
+)
+
+# replace NA with 0 (important for LASSO)
+comparison_lasso_table[is.na(comparison_lasso_table)] <- 0
+
+comparison_lasso_table <- comparison_lasso_table %>%
+  mutate(
+    Estimate_Diff = Weighted_Estimate - Unweighted_Estimate,
+    
+    Direction_Changed =
+      (Weighted_Estimate != 0 | Unweighted_Estimate != 0) &
+      (sign(Weighted_Estimate) != sign(Unweighted_Estimate)),
+    
+    Selection_Changed =
+      (Weighted_Estimate == 0 & Unweighted_Estimate != 0) |
+      (Weighted_Estimate != 0 & Unweighted_Estimate == 0)
+  )
+
+lasso_sensitivity_summary <- data.frame(
+  Metric = c(
+    "Number of variables",
+    "Variables with direction change",
+    "Variables with selection change",
+    "Mean absolute coefficient difference",
+    "Median absolute coefficient difference",
+    "Maximum absolute coefficient difference"
+  ),
+  Value = c(
+    nrow(comparison_lasso_table),
+    sum(comparison_lasso_table$Direction_Changed, na.rm = TRUE),
+    sum(comparison_lasso_table$Selection_Changed, na.rm = TRUE),
+    mean(abs(comparison_lasso_table$Estimate_Diff), na.rm = TRUE),
+    median(abs(comparison_lasso_table$Estimate_Diff), na.rm = TRUE),
+    max(abs(comparison_lasso_table$Estimate_Diff), na.rm = TRUE)
+  )
+)
+
+lasso_sensitivity_summary
+
+top_changes_lasso <- comparison_lasso_table %>%
+  arrange(desc(abs(Estimate_Diff))) %>%
+  select(
+    Variable,
+    Estimate_Diff,
+    Direction_Changed,
+    Selection_Changed
+  ) %>%
+  head(10)
+
+top_changes_lasso
+```
+
+```{r}
 pred_train_w_lasso <- as.numeric(predict(
   weighted_lasso,
   newx = x_train,
@@ -592,6 +656,86 @@ pred_test_u_lasso <- as.numeric(predict(
 ))
 ```
 
+Variable selection stability
+```{r}
+w_coef <- rownames(coef(weighted_lasso, s="lambda.1se"))[
+  coef(weighted_lasso, s="lambda.1se")[,1] != 0
+]
+
+u_coef <- rownames(coef(unweighted_lasso, s="lambda.1se"))[
+  coef(unweighted_lasso, s="lambda.1se")[,1] != 0
+]
+
+intersection <- length(intersect(w_coef, u_coef))
+union <- length(unique(c(w_coef, u_coef)))
+
+jaccard <- intersection / union
+jaccard
+
+coef_diff <- lasso_out[,1] - lasso_out[,2]
+summary(coef_diff)
+
+plot(lasso_out[,1], lasso_out[,2],
+     xlab="Weighted coef", ylab="Unweighted coef")
+abline(0,1)
+```
+
+
+```{r}
+par(
+  mfrow = c(2, 2),
+  mar = c(4, 4, 2, 1),   # reduce top margin
+  oma = c(0, 0, 2, 0),   # outer margin for global title
+  cex.main = 0.9,       # smaller titles
+  cex.axis = 0.8,       # smaller axis labels
+  cex.lab = 0.9         # smaller axis titles
+)
+# Weighted coefficient paths
+plot(
+  weighted_lasso$glmnet.fit,
+  xvar = "lambda",
+  label = FALSE,
+  ylab = "Weighted LASSO Coefficient Paths"
+)
+
+# Weighted CV curve
+plot(
+  weighted_lasso,
+  ylab = "Weighted LASSO Cross-Validation AUC "
+)
+
+abline(
+  v = log(weighted_lasso$lambda.1se),
+  lty = 2
+)
+
+# Unweighted coefficient paths
+plot(
+  unweighted_lasso$glmnet.fit,
+  xvar = "lambda",
+  label = FALSE,
+  ylab = "Unweighted LASSO Coefficient Paths"
+)
+
+# Unweighted CV curve
+plot(
+  unweighted_lasso,
+  ylab = "Unweighted LASSO Cross-Validation AUC "
+)
+
+abline(
+  v = log(unweighted_lasso$lambda.1se),
+  lty = 2
+)
+
+mtext(
+  "Weighted vs Unweighted LASSO Comparison",
+  outer = TRUE,
+  cex = 1.3
+)
+
+par(mfrow = c(1,1))
+```
 
 
 ## Comparison
